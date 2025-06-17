@@ -1,12 +1,4 @@
-// server.c
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
-#define PORT 12345
-#define BUF_SIZE 1024
+#include "header_server.h"
 
 int main()
 {
@@ -54,17 +46,20 @@ int main()
         close(server_fd);
         exit(1);
     }
+    message msg;
 
     // 6. Ricezione dati
-    unsigned long long key = 0;
-    ssize_t n = recv(client_fd, &key, sizeof(key), 0);
-    if (n != sizeof(key))
+    ssize_t n = recv(client_fd, &msg, sizeof(msg), 0);
+
+    if (n > sizeof(unsigned long long))
     {
-        printf("[SERVER] Errore nella ricezione della chiave\n");
+
+        printf("[SERVER] Chiave: %llu\n", msg.key);
+        printf("[SERVER] Testo: %s\n", msg.text);
     }
     else
     {
-        printf("[SERVER] Chiave ricevuta: %llu\n", key);
+        printf("[SERVER] Errore nella ricezione della chiave\n");
     }
 
     // 7. Risposta

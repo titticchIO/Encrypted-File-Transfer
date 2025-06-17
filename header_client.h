@@ -1,0 +1,27 @@
+#ifndef HEADER_H
+#define HEADER_H
+
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <malloc.h>
+
+#define PORT 12345
+#define BUF_SIZE 1024
+#define TEXT_SIZE 1024
+
+typedef struct
+{
+    unsigned long long key;
+    char text[TEXT_SIZE];
+} message;
+
+unsigned long long string_to_bits(const char *str);
+char *bits_to_string(unsigned long long bits);
+char *cypher_block(char *block, unsigned long long key);
+char *cypher_text(char *text, unsigned long long key);
+char *read_file(char *filename, unsigned long long key);
+
+#endif
