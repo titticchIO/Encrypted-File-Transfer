@@ -29,6 +29,15 @@ char *bits_to_string(unsigned long long bits)
     return str;
 }
 
+char *make_msg(unsigned long long key, char *text)
+{
+    int msg_size = sizeof(int) + sizeof(char) + strlen(text) + sizeof(unsigned long long);
+    char *msg = malloc(msg_size);
+    sprintf(msg, "%ld%c%s%lld", strlen(text), SEPARATOR, text, key);
+    printf("[CLIENT] Messaggio: %s\n", msg);
+    return msg;
+}
+
 char *cypher_block(char *block, unsigned long long key)
 {
     unsigned long long block_bytes = string_to_bits(block);

@@ -11,17 +11,13 @@
 #define PORT 12345
 #define BUF_SIZE 1024
 #define TEXT_SIZE 1024
-
-typedef struct
-{
-    unsigned long long key;
-    char text[TEXT_SIZE];
-} message;
+#define SEPARATOR '\x1F'
 
 unsigned long long string_to_bits(const char *str);
 char *bits_to_string(unsigned long long bits);
 char *cypher_block(char *block, unsigned long long key);
 char *cypher_text(char *text, unsigned long long key);
 char *read_file(char *filename, unsigned long long key);
+char *make_msg(unsigned long long key, char *text);
 
 #endif

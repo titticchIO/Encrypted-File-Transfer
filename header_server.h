@@ -9,11 +9,6 @@
 
 #define PORT 12345
 #define BUF_SIZE 1024
-
-typedef struct
-{
-    unsigned long long key;
-    char *text;
-} message;
+#define SEPARATOR '\x1F'
 
 #endif

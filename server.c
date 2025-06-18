@@ -46,21 +46,24 @@ int main()
         close(server_fd);
         exit(1);
     }
-    message msg;
 
-    // 6. Ricezione dati
-    ssize_t n = recv(client_fd, &msg, sizeof(msg), 0);
-
-    if (n > sizeof(unsigned long long))
+    char *text_size = malloc(20);
+    char c;
+    while (c != SEPARATOR)
     {
-
-        printf("[SERVER] Chiave: %llu\n", msg.key);
-        printf("[SERVER] Testo: %s\n", msg.text);
+        recv(client_fd, &c, 1, 0);
+        strncat(text_size, &c, 1);
     }
-    else
-    {
-        printf("[SERVER] Errore nella ricezione della chiave\n");
-    }
+    text_size[strlen(text_size)] = '\0';
+    int size = atoi(text_size);
+    char *text = malloc(size + 1);
+    recv(client_fd, text, size, 0);
+    text[size] = '\0';
+    char *key_s = malloc(19);
+    recv(client_fd, &key_s, 19, 0);
+    // key= key_s
+    unsigned long long key;
+    printf("[SERVER] Chiave: %lld\nRicevuto testo: %s\n", key, text);
 
     // 7. Risposta
     const char *response = "Ciao dal server!";

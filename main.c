@@ -1,17 +1,18 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include "header_client.h"
+#include "functions_client.c"
 
 int main()
 {
-    char hostname[256];
-    gethostname(hostname, sizeof(hostname));
-
-    struct hostent *host_entry = gethostbyname(hostname);
-
-    char *ip = inet_ntoa(*((struct in_addr *)host_entry->h_addr_list[0]));
-    printf("IP locale: %s\n", ip);
+    // chiave=1
+    unsigned long long key = 0x0102030405060708; // 64 bit, 8 byte
+    // converti key in stringa
+    char *key_s = bits_to_string(key);
+    printf("Chiave: %s\n%ld\n", key_s, strlen(key_s));
     return 0;
 }
