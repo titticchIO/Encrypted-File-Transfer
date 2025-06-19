@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <malloc.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 #define PORT 12345
 #define BUF_SIZE 1024

@@ -31,10 +31,13 @@ char *bits_to_string(unsigned long long bits)
 
 char *make_msg(unsigned long long key, char *text)
 {
-    int msg_size = sizeof(unsigned long long) + sizeof(char) + strlen(text) + sizeof(char);
+    // Calcola la dimensione necessaria per la stringa
+    printf("Key: %llu\n", key);
+    int msg_size = snprintf(NULL, 0, "%llu%c%s%c", key, SEPARATOR, text, SEPARATOR) + 1;
     char *msg = malloc(msg_size);
-    sprintf(msg, "%lld%c%s%c", key, SEPARATOR, text, SEPARATOR);
-    // printf("[CLIENT] Messaggio: %s\n", msg);
+    if (!msg)
+        return NULL;
+    snprintf(msg, msg_size, "%llu%c%s%c", key, SEPARATOR, text, SEPARATOR);
     return msg;
 }
 
@@ -47,7 +50,7 @@ char *cypher_block(char *block, unsigned long long key)
 
 char *cypher_text(char *text, unsigned long long key)
 {
-
+    // Implementa tutti i thread
     return text; // Placeholder for the actual ciphering logic
 }
 char *read_file(char *filename, unsigned long long key)

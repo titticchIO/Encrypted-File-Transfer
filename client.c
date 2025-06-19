@@ -1,9 +1,4 @@
 // client.c
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
 #include "functions_client.c"
 #include "header_client.h"
 
@@ -18,12 +13,11 @@ int main(int argc, char *argv[])
     strncpy(key_s, argv[1], 8);
 
     unsigned long long key = string_to_bits(key_s);
-    printf("Chiave in bits: %llu\n", key);
+    // printf("Chiave in bits: %llu\n", key);
     char *text = read_file("prova.txt", key);
 
     int sockfd;
     struct sockaddr_in server_addr;
-    char buffer[BUF_SIZE];
 
     // 1. Crea socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -51,16 +45,19 @@ int main(int argc, char *argv[])
 
     // Manda la chiave al server con send
     send(sockfd, msg, strlen(msg), 0);
-    // 5. Riceve risposta
-    memset(buffer, 0, BUF_SIZE);
-    recv(sockfd, buffer, BUF_SIZE, 0);
-    // printf("[CLIENT] Risposta: %s\n", buffer);
+    free(msg);
 
+    char buffer[4];
+    // 5. Riceve risposta
+    memset(buffer, 0, 4);
+    recv(sockfd, buffer, 4, 0);
+    printf("[CLIENT] ACK ricevuto\n");
     // 6. Chiudi
     close(sockfd);
 
     return 0;
 }
+
 // malloc(): invalid next size
 //  TEST CIFRATURA
 //  int main()
