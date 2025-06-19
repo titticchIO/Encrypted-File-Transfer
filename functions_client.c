@@ -31,10 +31,10 @@ char *bits_to_string(unsigned long long bits)
 
 char *make_msg(unsigned long long key, char *text)
 {
-    int msg_size = sizeof(int) + sizeof(char) + strlen(text) + sizeof(unsigned long long);
+    int msg_size = sizeof(unsigned long long) + sizeof(char) + strlen(text) + sizeof(char);
     char *msg = malloc(msg_size);
-    sprintf(msg, "%ld%c%s%lld", strlen(text), SEPARATOR, text, key);
-    printf("[CLIENT] Messaggio: %s\n", msg);
+    sprintf(msg, "%lld%c%s%c", key, SEPARATOR, text, SEPARATOR);
+    // printf("[CLIENT] Messaggio: %s\n", msg);
     return msg;
 }
 
