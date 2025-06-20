@@ -32,12 +32,11 @@ char *bits_to_string(unsigned long long bits)
 char *make_msg(unsigned long long key, char *text)
 {
     // Calcola la dimensione necessaria per la stringa
-    printf("Key: %llu\n", key);
-    int msg_size = snprintf(NULL, 0, "%llu%c%s%c", key, SEPARATOR, text, SEPARATOR) + 1;
+    int msg_size = snprintf(NULL, 0, "%llu%c%ld%c%s%c", key, SEPARATOR, strlen(text), SEPARATOR, text, SEPARATOR) + 1;
     char *msg = malloc(msg_size);
     if (!msg)
         return NULL;
-    snprintf(msg, msg_size, "%llu%c%s%c", key, SEPARATOR, text, SEPARATOR);
+    snprintf(msg, msg_size, "%llu%c%ld%c%s%c", key, SEPARATOR, strlen(text), SEPARATOR, text, SEPARATOR);
     return msg;
 }
 

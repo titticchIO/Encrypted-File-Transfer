@@ -4,6 +4,7 @@
 int main()
 {
     int server_fd, client_fd;
+
     init_socket(PORT, &server_fd, &client_fd);
 
     char *msg = receive_msg(client_fd);
@@ -11,9 +12,10 @@ int main()
 
     char *text = NULL;
     unsigned long long key = 0;
+    size_t text_len;
     // 6. Estrai chiave e testo dal messaggio
-    get_key_and_text(msg, &text, &key);
-    printf("[SERVER] Chiave: %llu, Testo: %s\n", key, text);
+    get_key_and_text(msg, &text_len, &text, &key);
+    printf("[SERVER] Chiave: %llu, Testo: %s, Lunghezza: %ld\n", key, text, text_len);
 
     // decypher_msg(msg, 0); // Placeholder per decifrare il messaggio
     // 7. Manda l'ACK al client

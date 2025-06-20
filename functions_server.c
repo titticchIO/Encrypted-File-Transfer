@@ -76,7 +76,7 @@ char *receive_msg(int client_fd)
     return msg;
 }
 
-void get_key_and_text(char *msg, char **text, unsigned long long *key)
+void get_key_and_text(char *msg, size_t *text_len, char **text, unsigned long long *key)
 {
     char *sep1 = strchr(msg, SEPARATOR);
     if (!sep1)
@@ -85,23 +85,26 @@ void get_key_and_text(char *msg, char **text, unsigned long long *key)
         *text = NULL;
         return;
     }
+    // key|len|text
     // Estrai la chiave
-    *sep1 = '\0';
-    *key = strtoull(msg, NULL, 10);
-
-    // Trova il secondo separatore
     char *sep2 = strchr(sep1 + 1, SEPARATOR);
     if (!sep2)
     {
         *text = NULL;
         return;
     }
-    size_t text_len = sep2 - (sep1 + 1);
-    *text = malloc(text_len + 1);
+    *sep1 = '\0';
+    *sep2 = '\0';
+    *key = strtoull(msg, NULL, 10);
+    *text_len = strtoull(sep1 + 1, NULL, 10);
+
+    // Trova il secondo separatore
+
+    *text = malloc(*text_len + 1);
     if (!*text)
         return;
-    memcpy(*text, sep1 + 1, text_len);
-    (*text)[text_len] = '\0';
+    memcpy(*text, sep2 + 1, *text_len);
+    (*text)[*text_len] = '\0';
 }
 
 char *decypher_msg(char *msg, unsigned long long key)
