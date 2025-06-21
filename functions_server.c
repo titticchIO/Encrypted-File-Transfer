@@ -1,6 +1,6 @@
 #include "header_server.h"
 
-void init_socket(int port, int *server_fd, int *client_fd)
+void init_socket(int port, int *server_fd, int l)
 {
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
@@ -34,15 +34,49 @@ void init_socket(int port, int *server_fd, int *client_fd)
     }
 
     printf("[SERVER] In ascolto su porta %d...\n", PORT);
+    // while (1) {
+    // 	pthread_t tid;
+    // 	int *client_socket = malloc(sizeof(int));
+    // 	*client_socket = accept(server_socket, ...);
+    // 	pthread_create(&tid, NULL, client_handler, client_socket);
+    // 	pthread_detach(tid);
+    // }
 
-    // 5. Accept
-    *client_fd = accept(*server_fd, (struct sockaddr *)&addr, &addr_len);
-    if (*client_fd < 0)
+    // // 5. Accept
+    // *client_fd = accept(*server_fd, (struct sockaddr *)&addr, &addr_len);
+    // if (*client_fd < 0)
+    // {
+    //     perror("accept");
+    //     close(*server_fd);
+    //     exit(1);
+    // }
+}
+
+void manage_threads(int *server_fd)
+{
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
+
+    while (1)
     {
-        perror("accept");
-        close(*server_fd);
-        exit(1);
+        sem_wait(&available_connections); // Attende che ci sia una connessione disponibile
+
+        int client_fd = accept(*server_fd, (struct sockaddr *)&addr, &addr_len);
+        if (client_fd < 0)
+        {
+            perror("accept");
+            continue;
+        }
+
+        // Qui puoi creare un thread per gestire la connessione
+        pthread_t tid;
+        pthread_create(&tid, NULL, manage_client_message, &client_fd);
+        pthread_detach(tid);
     }
+}
+
+void manage_client_message()
+{
 }
 
 char *receive_msg(int client_fd)

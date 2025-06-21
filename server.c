@@ -1,11 +1,16 @@
 #include "header_server.h"
 #include "functions_server.c"
+#include <semaphore.h>
 
 int main()
 {
+    char *prefix = "filet_test_";
+    int l = 3;
+    sem_init(&available_connections, 0, l); // Inizializza il semaforo per le connessioni attive
+
     int server_fd, client_fd;
 
-    init_socket(PORT, &server_fd, &client_fd);
+    init_socket(PORT, &server_fd, l);
 
     char *msg = receive_msg(client_fd);
     printf("[SERVER] Messaggio ricevuto: %s\n", msg);

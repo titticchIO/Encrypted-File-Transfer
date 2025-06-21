@@ -1,5 +1,109 @@
 #include "header_client.h"
 
+unsigned long long key = 0;
+char *msg_buffer = NULL;
+
+int init_socket(int port, const char *server_ip)
+{
+    int sockfd;
+    struct sockaddr_in server_addr;
+
+    // 1. Crea socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        perror("socket");
+        exit(1);
+    }
+
+    // 2. Imposta indirizzo del server
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    inet_pton(AF_INET, server_ip, &server_addr.sin_addr);
+    return sockfd;
+}
+
+void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p)
+{
+    int total_blocks = (blocks_per_thread * p) + blocks_last_thread;
+    int total_bytes = total_blocks * 8;
+    pthread_t *tids = malloc(sizeof(pthread_t) * p);
+
+    for (int i = 0; i < p; i++)
+    {
+        int blocks = blocks_per_thread;
+        if (i == p - 1 && blocks_last_thread > 0)
+            blocks += blocks_last_thread;
+
+        int start = i * blocks_per_thread * 8;
+        char *partial = malloc(blocks * 8 + 1);
+        strncpy(partial, text + start, blocks * 8);
+        partial[blocks * 8] = '\0';
+
+        thread_args *args = malloc(sizeof(thread_args));
+        args->partial = partial;
+        args->offset = start;
+
+        pthread_create(&tids[i], NULL, cypher_partial, args);
+    }
+    for (int i = 0; i < p; i++)
+    {
+        pthread_join(tids[i], NULL);
+    }
+    free(tids);
+}
+
+void divide_blocks(char *text, int p, int L)
+{
+    int padding_len = 8 - (L % 8);
+    if (padding_len < 8)
+    {
+        text = realloc(text, L + padding_len + 1);
+        memset(text + L, ' ', padding_len);
+        text[L + padding_len] = '\0';
+        L += padding_len;
+    }
+    int blocks_num = L / 8;
+    int blocks_per_thread = blocks_num / p;
+    int blocks_last_thread = blocks_num % p;
+
+    // Alloca il buffer globale per il testo cifrato
+    if (msg_buffer)
+        free(msg_buffer);
+    msg_buffer = malloc(L + 1);
+    memset(msg_buffer, 0, L + 1);
+
+    manage_threads(text, blocks_per_thread, blocks_last_thread, p);
+}
+
+void *cypher_partial(void *void_args)
+{
+    thread_args *args = (thread_args *)void_args;
+    char *partial = args->partial;
+    int offset = args->offset;
+    int blocks_num = strlen(partial) / 8;
+    char block[9];
+
+    for (int i = 0; i < blocks_num; i++)
+    {
+        strncpy(block, partial + (i * 8), 8);
+        block[8] = '\0';
+        cypher_block(block, offset + (i * 8));
+    }
+    free(partial);
+    free(args);
+    return NULL;
+}
+
+void cypher_block(const char *block, int offset)
+{
+    unsigned long long block_bytes = string_to_bits(block);
+    unsigned long long cyphered_bytes = block_bytes ^ key; // XOR
+    char *cyphered_block = bits_to_string(cyphered_bytes);
+    memcpy(msg_buffer + offset, cyphered_block, 8);
+    free(cyphered_block);
+}
+
 unsigned long long string_to_bits(const char *str)
 {
     unsigned long long result = 0;
@@ -40,19 +144,7 @@ char *make_msg(unsigned long long key, char *text)
     return msg;
 }
 
-char *cypher_block(char *block, unsigned long long key)
-{
-    unsigned long long block_bytes = string_to_bits(block);
-    unsigned long long cypher_bytes = block_bytes ^ key;
-    return bits_to_string(cypher_bytes);
-}
-
-char *cypher_text(char *text, unsigned long long key)
-{
-    // Implementa tutti i thread
-    return text; // Placeholder for the actual ciphering logic
-}
-char *read_file(char *filename, unsigned long long key)
+char *read_file(char *filename)
 {
     FILE *file = fopen(filename, "r");
     if (!file)
@@ -62,10 +154,10 @@ char *read_file(char *filename, unsigned long long key)
     }
 
     fseek(file, 0, SEEK_END);
-    long dimensione = ftell(file);
+    long dimension = ftell(file);
     rewind(file);
 
-    char *buffer = malloc(dimensione + 1);
+    char *buffer = malloc(dimension + 1);
     if (!buffer)
     {
         perror("Errore nell'allocazione di memoria");
@@ -73,8 +165,8 @@ char *read_file(char *filename, unsigned long long key)
         return NULL;
     }
 
-    int letti = fread(buffer, sizeof(char), dimensione, file);
-    buffer[letti] = '\0';
+    int read = fread(buffer, sizeof(char), dimension, file);
+    buffer[read] = '\0';
     fclose(file);
-    return cypher_text(buffer, key);
+    return buffer;
 }
