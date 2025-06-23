@@ -1,26 +1,77 @@
 #include "header_client.h"
 
 unsigned long long key = 0;
-char *msg_buffer = NULL;
+char *text_buffer = NULL;
 
-int init_socket(int port, const char *server_ip)
+char *read_file(char *filename)
 {
-    int sockfd;
-    struct sockaddr_in server_addr;
-
-    // 1. Crea socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
+    FILE *file = fopen(filename, "r");
+    if (!file)
     {
-        perror("socket");
-        exit(1);
+        perror("Errore nell'apertura del file");
+        return NULL;
     }
 
-    // 2. Imposta indirizzo del server
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    inet_pton(AF_INET, server_ip, &server_addr.sin_addr);
-    return sockfd;
+    fseek(file, 0, SEEK_END);
+    long dimension = ftell(file);
+    rewind(file);
+
+    char *buffer = malloc(dimension + 1);
+    if (!buffer)
+    {
+        perror("Errore nell'allocazione di memoria");
+        fclose(file);
+        return NULL;
+    }
+
+    int read = fread(buffer, sizeof(char), dimension, file);
+    buffer[read] = '\0';
+    fclose(file);
+    return buffer;
+}
+
+// Blocca i segnali SIGINT, SIGALRM, SIGUSR1, SIGUSR2, SIGTERM
+void block_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nel blocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Sblocca i segnali SIGINT, SIGALRM, SIGUSR1, SIGUSR2, SIGTERM
+void unblock_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nello sblocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
+}
+void divide_blocks(char *text, int p, int L)
+{
+    int padding_len = 8 - (L % 8);
+    if (padding_len < 8)
+    {
+        text = realloc(text, L + padding_len + 1);
+        memset(text + L, ' ', padding_len);
+        text[L + padding_len] = '\0';
+        L += padding_len;
+    }
+    int blocks_num = L / 8;
+    int blocks_per_thread = blocks_num / p;
+    int blocks_last_thread = blocks_num % p;
+
+    // Alloca il buffer globale per il testo cifrato
+    if (text_buffer)
+        free(text_buffer);
+    text_buffer = malloc(L + 1);
+    memset(text_buffer, 0, L + 1);
+
+    manage_threads(text, blocks_per_thread, blocks_last_thread, p);
 }
 
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p)
@@ -46,34 +97,12 @@ void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, i
 
         pthread_create(&tids[i], NULL, cypher_partial, args);
     }
+    // Attende la terminazione di tutti i thread
     for (int i = 0; i < p; i++)
     {
         pthread_join(tids[i], NULL);
     }
     free(tids);
-}
-
-void divide_blocks(char *text, int p, int L)
-{
-    int padding_len = 8 - (L % 8);
-    if (padding_len < 8)
-    {
-        text = realloc(text, L + padding_len + 1);
-        memset(text + L, ' ', padding_len);
-        text[L + padding_len] = '\0';
-        L += padding_len;
-    }
-    int blocks_num = L / 8;
-    int blocks_per_thread = blocks_num / p;
-    int blocks_last_thread = blocks_num % p;
-
-    // Alloca il buffer globale per il testo cifrato
-    if (msg_buffer)
-        free(msg_buffer);
-    msg_buffer = malloc(L + 1);
-    memset(msg_buffer, 0, L + 1);
-
-    manage_threads(text, blocks_per_thread, blocks_last_thread, p);
 }
 
 void *cypher_partial(void *void_args)
@@ -92,7 +121,6 @@ void *cypher_partial(void *void_args)
     }
     free(partial);
     free(args);
-    return NULL;
 }
 
 void cypher_block(const char *block, int offset)
@@ -100,7 +128,7 @@ void cypher_block(const char *block, int offset)
     unsigned long long block_bytes = string_to_bits(block);
     unsigned long long cyphered_bytes = block_bytes ^ key; // XOR
     char *cyphered_block = bits_to_string(cyphered_bytes);
-    memcpy(msg_buffer + offset, cyphered_block, 8);
+    memcpy(text_buffer + offset, cyphered_block, 8);
     free(cyphered_block);
 }
 
@@ -133,6 +161,25 @@ char *bits_to_string(unsigned long long bits)
     return str;
 }
 
+int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr)
+{
+    int sockfd;
+
+    // 1. Crea socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        perror("socket");
+        exit(1);
+    }
+
+    // 2. Imposta indirizzo del server
+    memset(server_addr, 0, sizeof(*server_addr));
+    server_addr->sin_family = AF_INET;
+    server_addr->sin_port = htons(port);
+    inet_pton(AF_INET, server_ip, &server_addr->sin_addr);
+    return sockfd;
+}
 char *make_msg(unsigned long long key, char *text)
 {
     // Calcola la dimensione necessaria per la stringa
@@ -142,31 +189,4 @@ char *make_msg(unsigned long long key, char *text)
         return NULL;
     snprintf(msg, msg_size, "%llu%c%ld%c%s%c", key, SEPARATOR, strlen(text), SEPARATOR, text, SEPARATOR);
     return msg;
-}
-
-char *read_file(char *filename)
-{
-    FILE *file = fopen(filename, "r");
-    if (!file)
-    {
-        perror("Errore nell'apertura del file");
-        return NULL;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long dimension = ftell(file);
-    rewind(file);
-
-    char *buffer = malloc(dimension + 1);
-    if (!buffer)
-    {
-        perror("Errore nell'allocazione di memoria");
-        fclose(file);
-        return NULL;
-    }
-
-    int read = fread(buffer, sizeof(char), dimension, file);
-    buffer[read] = '\0';
-    fclose(file);
-    return buffer;
 }

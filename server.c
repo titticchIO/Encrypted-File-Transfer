@@ -2,35 +2,37 @@
 #include "functions_server.c"
 #include <semaphore.h>
 
+sem_t available_connections;
+int p;
+int server_fd;
+
 int main()
 {
+    // ARGOMENTI DA TERMINALE
     char *prefix = "filet_test_";
     int l = 3;
+    p = 5;
+    // ARGOMENTI DA TERMINALE
+
     sem_init(&available_connections, 0, l); // Inizializza il semaforo per le connessioni attive
 
-    int server_fd, client_fd;
+    struct sigaction sa;
+    sa.sa_handler = termination_handler;
+    sigemptyset(&sa.sa_mask);
 
-    init_socket(PORT, &server_fd, l);
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(1);
+    }
+    if (sigaction(SIGTERM, &sa, NULL) == -1)
+    {
+        perror("sigterm");
+        exit(1);
+    }
 
-    char *msg = receive_msg(client_fd);
-    printf("[SERVER] Messaggio ricevuto: %s\n", msg);
-
-    char *text = NULL;
-    unsigned long long key = 0;
-    size_t text_len;
-    // 6. Estrai chiave e testo dal messaggio
-    get_key_and_text(msg, &text_len, &text, &key);
-    printf("[SERVER] Chiave: %llu, Testo: %s, Lunghezza: %ld\n", key, text, text_len);
-
-    // decypher_msg(msg, 0); // Placeholder per decifrare il messaggio
-    // 7. Manda l'ACK al client
-    const char *response = "ACK";
-    send(client_fd, response, strlen(response), 0);
-
-    // 8. Termina connessione
-    close(client_fd);
-    close(server_fd);
-    printf("[SERVER] Connessione chiusa.\n");
+    init_socket(PORT, &server_fd);
+    manage_connections();
 
     return 0;
 }
