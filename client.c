@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     msg_buffer = malloc(L + 1);
     msg_buffer[L] = '\0';
     key = string_to_bits(key_s);
+    divide_blocks(text, p, L);
     printf("Testo: %s\nTesto cifrato: %s\n", text, msg_buffer);
     // Stampa un char alla volta con un for
     for (int i = 0; i < L; i++)
