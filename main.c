@@ -9,10 +9,6 @@
 
 int main()
 {
-    // chiave=1
-    unsigned long long key = 0x0102030405060708; // 64 bit, 8 byte
-    // converti key in stringa
-    char *key_s = bits_to_string(key);
-    printf("Chiave: %s\n%ld\n", key_s, strlen(key_s));
-    return 0;
+    char *text = "Hello, World!";
+    char *text = "Hello, World!";
 }

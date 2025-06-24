@@ -51,7 +51,7 @@ void unblock_signals(sigset_t set)
         exit(EXIT_FAILURE);
     }
 }
-void divide_blocks(char *text, int p, int L)
+size_t divide_blocks(char *text, int p, size_t L)
 {
     int padding_len = 8 - (L % 8);
     if (padding_len < 8)
@@ -70,8 +70,9 @@ void divide_blocks(char *text, int p, int L)
         free(text_buffer);
     text_buffer = malloc(L + 1);
     memset(text_buffer, 0, L + 1);
-
+    printf("numerosiuuuum:%ld\n", L);
     manage_threads(text, blocks_per_thread, blocks_last_thread, p);
+    return L;
 }
 
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p)
@@ -125,8 +126,10 @@ void *cypher_partial(void *void_args)
 
 void cypher_block(const char *block, int offset)
 {
+
     unsigned long long block_bytes = string_to_bits(block);
     unsigned long long cyphered_bytes = block_bytes ^ key; // XOR
+
     char *cyphered_block = bits_to_string(cyphered_bytes);
     memcpy(text_buffer + offset, cyphered_block, 8);
     free(cyphered_block);
@@ -145,6 +148,8 @@ unsigned long long string_to_bits(const char *str)
         result <<= 8;                    // lascia spazio per il prossimo carattere
         result |= (unsigned char)str[i]; // aggiungi i byte in fondo
     }
+
+    // Stampa la rappresentazione binaria
 
     return result;
 }
@@ -180,13 +185,13 @@ int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr
     inet_pton(AF_INET, server_ip, &server_addr->sin_addr);
     return sockfd;
 }
-char *make_msg(unsigned long long key, char *text)
+char *make_msg(unsigned long long key, char *text, size_t l)
 {
     // Calcola la dimensione necessaria per la stringa
-    int msg_size = snprintf(NULL, 0, "%llu%c%ld%c%s%c", key, SEPARATOR, strlen(text), SEPARATOR, text, SEPARATOR) + 1;
+    int msg_size = snprintf(NULL, 0, "%llu%c%ld%c%s%c", key, SEPARATOR, l, SEPARATOR, text, SEPARATOR) + 1;
     char *msg = malloc(msg_size);
     if (!msg)
         return NULL;
-    snprintf(msg, msg_size, "%llu%c%ld%c%s%c", key, SEPARATOR, strlen(text), SEPARATOR, text, SEPARATOR);
+    snprintf(msg, msg_size, "%llu%c%ld%c%s%c", key, SEPARATOR, l, SEPARATOR, text, SEPARATOR);
     return msg;
 }

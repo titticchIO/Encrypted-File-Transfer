@@ -25,6 +25,7 @@ typedef struct
     int offset;
     unsigned long long key;
     char *text_buffer;
+    int blocks_num;
 } thread_args;
 
 // Funzioni di functions_server.c

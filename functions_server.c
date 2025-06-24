@@ -149,14 +149,27 @@ void *manage_client_message(void *arg)
 
 char *manage_threads(char *text, size_t text_len, unsigned long long key)
 {
-    // Calcola il numero di blocchi per thread
     char *text_buffer = malloc(text_len + 1);
-    int blocks_per_thread = text_len / (p * 8);      // 8 byte per blocco
-    int blocks_last_thread = text_len % (p * 8) / 8; // Resto per l'ultimo thread
+    // calcola il numero totale di blocchi
+    int blocks_total = text_len / 8; // 8 byte per blocco
+    int blocks_per_thread, blocks_last_thread, thread_count;
+    if (blocks_total <= p)
+    {
+        blocks_per_thread = 1;
+        blocks_last_thread = 0;
+        thread_count = blocks_total;
+    }
+    else
+    {
+        // Calcola il numero di blocchi per thread
+        blocks_per_thread = text_len / (p * 8);      // 8 byte per blocco
+        blocks_last_thread = text_len % (p * 8) / 8; // Resto per l'ultimo thread
+        thread_count = p;
+    }
 
-    pthread_t *tids = malloc(sizeof(pthread_t) * p);
+    pthread_t *tids = malloc(sizeof(pthread_t) * thread_count);
 
-    for (int i = 0; i < p; i++)
+    for (int i = 0; i < thread_count; i++)
     {
         int blocks = blocks_per_thread;
         if (i == p - 1 && blocks_last_thread > 0)
@@ -172,10 +185,11 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
         args->offset = start;
         args->key = key;
         args->text_buffer = text_buffer;
+        args->blocks_num = blocks_per_thread;
         pthread_create(&tids[i], NULL, *decypher_partial, args);
     }
     // Attende la terminazione di tutti i thread
-    for (int i = 0; i < p; i++)
+    for (int i = 0; i < thread_count; i++)
     {
         pthread_join(tids[i], NULL);
     }
@@ -192,7 +206,7 @@ void *decypher_partial(void *arg)
     int offset = args->offset;
     char *text_buffer = args->text_buffer;
     unsigned long long key = args->key;
-    int blocks_num = strlen(partial) / 8;
+    int blocks_num = args->blocks_num;
     char block[9];
 
     for (int i = 0; i < blocks_num; i++)
@@ -208,6 +222,18 @@ void *decypher_partial(void *arg)
 void decypher_block(char *block, int offset, unsigned long long key, char *text_buffer)
 {
     unsigned long long block_bytes = string_to_bits(block);
+    printf("Blocco in binario: ");
+    for (int i = 63; i >= 0; i--)
+    {
+        printf("%llu", (block_bytes >> i) & 1ULL);
+    }
+    printf("\n");
+    printf("Chiave in binario: ");
+    for (int i = 63; i >= 0; i--)
+    {
+        printf("%llu", (key >> i) & 1ULL);
+    }
+    printf("\n");
     unsigned long long decyphered_bytes = block_bytes ^ key;
     char *decyphered_block = bits_to_string(decyphered_bytes);
     memcpy(text_buffer + offset, decyphered_block, 8);

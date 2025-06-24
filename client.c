@@ -12,15 +12,18 @@ int main(int argc, char *argv[])
     int sockfd;
     struct sockaddr_in server_addr;
     int p = 5;
-    argv[1] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    argv[1] = "emiliano";
     // argomenti
-
-    char key_s[9] = "\0\0\0\0\0\0\0\0"; // 8 caratteri + terminatore null
-    strncpy(key_s, argv[1], 8);
-    char *text = read_file("mess_lungo.txt");
-    int L = strlen(text);
-    text_buffer = malloc(L + 1);
-    text_buffer[L] = '\0';
+    size_t L = 8 >= strlen(argv[1]) ? 8 : strlen(argv[1]);
+    char *key_s = calloc(9, sizeof(char));
+    strncpy(key_s, argv[1], L);
+    key_s[8] = '\0';
+    printf("Key: %s\n", key_s);
+    // char *text = read_file("mess_lungo.txt");
+    char *text = read_file("prova.txt");
+    size_t orig_l = strlen(text);
+    // text_buffer = malloc(l + 1);
+    // text_buffer[l] = '\0';
     key = string_to_bits(key_s);
 
     // Blocca i segnali SIGINT, SIGALRM, SIGUSR1, SIGUSR2, SIGTERM
@@ -32,13 +35,13 @@ int main(int argc, char *argv[])
     sigaddset(&set, SIGUSR2);
     sigaddset(&set, SIGTERM);
 
-    printf("Testo: %s\nTesto cifrato: %s\n", text, text_buffer);
+    // printf("Testo: %s\nTesto cifrato: %s\n", text, text_buffer);
     // Stampa un char alla volta con un for
-    for (int i = 0; i < L; i++)
-    {
-        printf("%02x ", (unsigned char)text_buffer[i]);
-    }
-    printf("\n");
+    // for (int i = 0; i < l; i++)
+    // {
+    //     printf("%02x ", (unsigned char)text_buffer[i]);
+    // }
+    // printf("\n");
 
     sockfd = init_socket(PORT, SERVER_IP, &server_addr);
 
@@ -51,11 +54,11 @@ int main(int argc, char *argv[])
     }
 
     block_signals(set);
-    divide_blocks(text, p, L);
+    size_t l = divide_blocks(text, p, orig_l);
     unblock_signals(set);
 
     // 4. Invia messaggio
-    char *msg = make_msg(key, text_buffer);
+    char *msg = make_msg(key, text_buffer, l);
 
     // Manda la chiave al server con send
     printf("[CLIENT] Inviando messaggio: %s\n", msg);
