@@ -101,33 +101,47 @@ char *receive_msg(int client_fd)
 
 void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char **text)
 {
+    // Formato messaggio: key SEPARATOR text_len SEPARATOR text SEPARATOR
+
+    // Trova i separatori
     char *sep1 = strchr(msg, SEPARATOR);
     if (!sep1)
     {
         *key = 0;
         *text = NULL;
+        *text_len = 0;
         return;
     }
-    // key|len|text
-    // Estrai la chiave
     char *sep2 = strchr(sep1 + 1, SEPARATOR);
     if (!sep2)
     {
+        *key = 0;
         *text = NULL;
+        *text_len = 0;
         return;
     }
+    // Estrai la chiave
     *sep1 = '\0';
-    *sep2 = '\0';
     *key = strtoull(msg, NULL, 10);
+
+    // Estrai la lunghezza del testo
+    *sep2 = '\0';
     *text_len = strtoull(sep1 + 1, NULL, 10);
 
-    // Trova il secondo separatore
-
+    // Alloca e copia il testo
     *text = malloc(*text_len + 1);
     if (!*text)
+    {
+        *text_len = 0;
         return;
+    }
     memcpy(*text, sep2 + 1, *text_len);
-    (*text)[*text_len] = '\0';
+    (*text)[*text_len] = '\0'; // Per sicurezza, anche se il testo può contenere '\0'
+
+    // Debug:
+    // stampa il testo ricevuto come dati binari
+    fwrite(*text, 1, *text_len, stdout);
+    printf("\n");
 }
 
 void *manage_client_message(void *arg)
@@ -177,7 +191,8 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
 
         int start = i * blocks_per_thread * 8;
         char *partial = malloc(blocks * 8 + 1);
-        strncpy(partial, text + start, blocks * 8);
+        // strncpy(partial, text + start, blocks * 8);
+        memcpy(partial, text + start, blocks * 8);
         partial[blocks * 8] = '\0';
 
         thread_args *args = malloc(sizeof(thread_args));
@@ -211,7 +226,8 @@ void *decypher_partial(void *arg)
 
     for (int i = 0; i < blocks_num; i++)
     {
-        strncpy(block, partial + (i * 8), 8);
+        // strncpy(block, partial + (i * 8), 8);
+        memcpy(block, partial + (i * 8), 8);
         block[8] = '\0';
         decypher_block(block, offset + (i * 8), key, text_buffer);
     }
@@ -221,17 +237,13 @@ void *decypher_partial(void *arg)
 
 void decypher_block(char *block, int offset, unsigned long long key, char *text_buffer)
 {
+    char *key_s = bits_to_string(key);
+    printf("Key: %s\n", key_s);
     unsigned long long block_bytes = string_to_bits(block);
     printf("Blocco in binario: ");
     for (int i = 63; i >= 0; i--)
     {
         printf("%llu", (block_bytes >> i) & 1ULL);
-    }
-    printf("\n");
-    printf("Chiave in binario: ");
-    for (int i = 63; i >= 0; i--)
-    {
-        printf("%llu", (key >> i) & 1ULL);
     }
     printf("\n");
     unsigned long long decyphered_bytes = block_bytes ^ key;

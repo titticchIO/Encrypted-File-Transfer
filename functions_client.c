@@ -129,7 +129,12 @@ void cypher_block(const char *block, int offset)
 
     unsigned long long block_bytes = string_to_bits(block);
     unsigned long long cyphered_bytes = block_bytes ^ key; // XOR
-
+    printf("Blocco in binario: ");
+    for (int i = 63; i >= 0; i--)
+    {
+        printf("%llu", (cyphered_bytes >> i) & 1ULL);
+    }
+    printf("\n");
     char *cyphered_block = bits_to_string(cyphered_bytes);
     memcpy(text_buffer + offset, cyphered_block, 8);
     free(cyphered_block);
@@ -188,6 +193,8 @@ int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr
 char *make_msg(unsigned long long key, char *text, size_t l)
 {
     // Calcola la dimensione necessaria per la stringa
+    fwrite(text, 1, l, stdout);
+    printf("\n");
     int msg_size = snprintf(NULL, 0, "%llu%c%ld%c%s%c", key, SEPARATOR, l, SEPARATOR, text, SEPARATOR) + 1;
     char *msg = malloc(msg_size);
     if (!msg)

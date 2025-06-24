@@ -12,12 +12,18 @@ int main(int argc, char *argv[])
     int sockfd;
     struct sockaddr_in server_addr;
     int p = 5;
-    argv[1] = "emiliano";
+    argv[1] = "llllllll";
     // argomenti
-    size_t L = 8 >= strlen(argv[1]) ? 8 : strlen(argv[1]);
+    // fprintf(stderr, "%s", buffer);
+    if (strlen(argv[1]) != 8)
+    { // controllo lunghezza chiave
+        fprintf(stderr, "%s", "La chiave deve avere lunghezza 8\n");
+        exit(1);
+    }
     char *key_s = calloc(9, sizeof(char));
-    strncpy(key_s, argv[1], L);
+    strncpy(key_s, argv[1], 8);
     key_s[8] = '\0';
+
     printf("Key: %s\n", key_s);
     // char *text = read_file("mess_lungo.txt");
     char *text = read_file("prova.txt");
