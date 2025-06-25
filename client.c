@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     int sockfd;
     struct sockaddr_in server_addr;
     int p = 5;
-    argv[1] = "llllllll";
+    // argv[1] = "emiliano";
     // argomenti
     // fprintf(stderr, "%s", buffer);
     if (strlen(argv[1]) != 8)

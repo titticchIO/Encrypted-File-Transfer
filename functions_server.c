@@ -237,8 +237,8 @@ void *decypher_partial(void *arg)
 
 void decypher_block(char *block, int offset, unsigned long long key, char *text_buffer)
 {
-    char *key_s = bits_to_string(key);
-    printf("Key: %s\n", key_s);
+    // char *key_s = bits_to_string(key);  //DEBUG
+    // printf("Key: %s\n", key_s);          //DEBUG
     unsigned long long block_bytes = string_to_bits(block);
     printf("Blocco in binario: ");
     for (int i = 63; i >= 0; i--)
