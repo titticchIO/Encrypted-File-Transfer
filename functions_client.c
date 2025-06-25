@@ -143,12 +143,8 @@ void cypher_block(const char *block, int offset)
 unsigned long long string_to_bits(const char *str)
 {
     unsigned long long result = 0;
-    size_t len = strlen(str);
 
-    if (len > 8)
-        len = 8; // massimo 8 caratteri (64 bit)
-
-    for (size_t i = 0; i < len; i++)
+    for (size_t i = 0; i < 8; i++)
     {
         result <<= 8;                    // lascia spazio per il prossimo carattere
         result |= (unsigned char)str[i]; // aggiungi i byte in fondo

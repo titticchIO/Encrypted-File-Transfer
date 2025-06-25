@@ -10,5 +10,5 @@
 int main()
 {
     char *text = "Hello, World!";
-    char *text = "Hello, World!";
+    unsigned long long bits = string_to_bits(text);
 }

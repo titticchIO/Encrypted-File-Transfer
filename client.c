@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     int sockfd;
     struct sockaddr_in server_addr;
     int p = 5;
-    argv[1] = "emiliano";
+    // argv[1] = "emiliano";
     // argomenti
     // fprintf(stderr, "%s", buffer);
     if (strlen(argv[1]) != 8)
@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 
     printf("Key: %s\n", key_s);
     // char *text = read_file("mess_lungo.txt");
-    char *text = read_file("prova.txt");
+    char *text = read_file("mess_lungo.txt");
     size_t orig_l = strlen(text);
     // text_buffer = malloc(l + 1);
     // text_buffer[l] = '\0';
