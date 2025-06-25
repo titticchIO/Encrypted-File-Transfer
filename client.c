@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 
     printf("Key: %s\n", key_s);
     // char *text = read_file("mess_lungo.txt");
-    char *text = read_file("prova.txt");
+    char *text = read_file("mess_lungo.txt");
     size_t orig_l = strlen(text);
     // text_buffer = malloc(l + 1);
     // text_buffer[l] = '\0';
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     char *msg = make_msg(key, text_buffer, l, &msg_len);
 
     // Manda la chiave al server con send
-    printf("[CLIENT] Inviando messaggio: %s\n", msg);
+    printf("[CLIENT] Invio messaggio...\n");
     int n = send(sockfd, msg, msg_len, 0);
     free(msg);
     char buffer[4];

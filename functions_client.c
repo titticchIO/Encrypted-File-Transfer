@@ -57,7 +57,7 @@ size_t divide_blocks(char *text, int p, size_t L)
     if (padding_len < 8)
     {
         text = realloc(text, L + padding_len + 1);
-        memset(text + L, ' ', padding_len);
+        memset(text + L, EOT, padding_len);
         text[L + padding_len] = '\0';
         L += padding_len;
     }

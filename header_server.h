@@ -14,10 +14,12 @@
 #define PORT 12345
 #define BUF_SIZE 1024
 #define SEPARATOR '\x1F'
+#define EOT '\x03'
 
 extern sem_t available_connections;
 extern int p;
 extern int server_fd;
+extern char *prefix;
 
 typedef struct
 {
@@ -26,7 +28,13 @@ typedef struct
     unsigned long long key;
     char *text_buffer;
     int blocks_num;
-} thread_args;
+} d_thread_args;
+
+typedef struct
+{
+    int client_fd;
+    int serial;
+} c_thread_args;
 
 // Funzioni di functions_server.c
 void termination_handler(int signum);
@@ -40,5 +48,6 @@ void *decypher_partial(void *arg);
 void decypher_block(char *block, int offset, unsigned long long key, char *text_buffer);
 unsigned long long string_to_bits(const char *str);
 char *bits_to_string(unsigned long long bits);
+void write_file(char *text, char *pathfile);
 
 #endif

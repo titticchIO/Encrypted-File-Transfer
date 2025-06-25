@@ -5,15 +5,15 @@
 sem_t available_connections;
 int p;
 int server_fd;
+char *prefix;
 
 int main()
 {
     // ARGOMENTI DA TERMINALE
-    char *prefix = "filet_test_";
+    prefix = "file_test_";
     int l = 3;
     p = 3;
     // ARGOMENTI DA TERMINALE
-
     sem_init(&available_connections, 0, l); // Inizializza il semaforo per le connessioni attive
 
     struct sigaction sa;

@@ -18,6 +18,7 @@
 #define BUF_SIZE 1024
 #define TEXT_SIZE 1024
 #define SEPARATOR '\x1F'
+#define EOT '\x03'
 
 typedef struct
 {
@@ -32,7 +33,7 @@ extern char *text_buffer;
 char *read_file(char *filename);
 void block_signals(sigset_t set);
 void unblock_signals(sigset_t set);
-size_t divide_blocks(char *text, int p, size_t l);
+size_t divide_blocks(char *text, int p, size_t L);
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p);
 void *cypher_partial(void *void_args);
 void cypher_block(const char *block, int offset);
@@ -40,5 +41,4 @@ unsigned long long string_to_bits(const char *str);
 char *bits_to_string(unsigned long long bits);
 int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr);
 char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len);
-
 #endif

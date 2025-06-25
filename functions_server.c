@@ -53,11 +53,11 @@ void manage_connections()
 {
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
-
+    int serial = 0;
     while (1)
     {
         sem_wait(&available_connections); // Attende che ci sia una connessione disponibile
-
+        serial++;
         int client_fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
         if (client_fd < 0)
         {
@@ -65,9 +65,11 @@ void manage_connections()
             continue;
         }
 
-        // Qui puoi creare un thread per gestire la connessione
+        c_thread_args *args = malloc(sizeof(c_thread_args));
+        args->client_fd = client_fd;
+        args->serial = serial;
         pthread_t tid;
-        pthread_create(&tid, NULL, *manage_client_message, &client_fd);
+        pthread_create(&tid, NULL, *manage_client_message, args);
         pthread_detach(tid);
     }
 }
@@ -145,19 +147,31 @@ void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char
 
 void *manage_client_message(void *arg)
 {
-    int client_fd = *(int *)arg;
+    c_thread_args *args = (c_thread_args *)arg;
+    int client_fd = args->client_fd;
+    int serial = args->serial;
     char *msg = receive_msg(client_fd);
     unsigned long long key = 0;
     size_t text_len = 0;
     char *text = NULL;
     get_key_and_text(msg, &key, &text_len, &text);
     char *decyphered_text = manage_threads(text, text_len, key);
-    printf("[SERVER] Messaggio decifrato: %s\n", decyphered_text);
+    char *eot = strchr(decyphered_text, EOT);
+    *eot = '\0';
 
     const char *response = "ACK";
     send(client_fd, response, strlen(response), 0);
     close(client_fd);
-    // scrivi su output.txt
+
+    int len_serial = snprintf(NULL, 0, "%d", serial);
+    int filename_len = strlen(prefix) + len_serial + 5; // 4 per ".txt" + 1 per '\0'
+    char *filename = malloc(filename_len);
+    snprintf(filename, filename_len, "%s%d.txt", prefix, serial);
+    filename[filename_len] = '\0';
+    printf("[SERVER] Scrivendo sul file: %s\n", filename);
+    write_file(decyphered_text, filename);
+    free(filename);
+    sem_post(&available_connections);
 }
 
 char *manage_threads(char *text, size_t text_len, unsigned long long key)
@@ -194,7 +208,7 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
         memcpy(partial, text + start, blocks * 8);
         partial[blocks * 8] = '\0';
 
-        thread_args *args = malloc(sizeof(thread_args));
+        d_thread_args *args = malloc(sizeof(d_thread_args));
         args->partial = partial;
         args->offset = start;
         args->key = key;
@@ -215,7 +229,7 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
 
 void *decypher_partial(void *arg)
 {
-    thread_args *args = (thread_args *)arg;
+    d_thread_args *args = (d_thread_args *)arg;
     char *partial = args->partial;
     int offset = args->offset;
     char *text_buffer = args->text_buffer;
@@ -267,4 +281,16 @@ char *bits_to_string(unsigned long long bits)
     }
     str[8] = '\0'; // Terminatore di stringa
     return str;
+}
+
+void write_file(char *text, char *pathfile)
+{
+    FILE *file = fopen(pathfile, "w");
+    if (!file)
+    {
+        perror("Errore nell'apertura del file");
+        return;
+    }
+    fwrite(text, sizeof(char), strlen(text), file);
+    fclose(file);
 }
