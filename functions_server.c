@@ -21,6 +21,10 @@ void init_socket(int port, int *server_fd)
         exit(1);
     }
 
+    // Permetti il riutilizzo immediato della porta
+    int optval = 1;
+    setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+
     // 2. Imposta indirizzo locale
 
     addr.sin_family = AF_INET;

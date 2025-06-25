@@ -39,6 +39,6 @@ void cypher_block(const char *block, int offset);
 unsigned long long string_to_bits(const char *str);
 char *bits_to_string(unsigned long long bits);
 int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr);
-char *make_msg(unsigned long long key, char *text, size_t l);
+char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len);
 
 #endif

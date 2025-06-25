@@ -191,24 +191,24 @@ int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr
     return sockfd;
 }
 
-char *make_msg(unsigned long long key, char *text, size_t l)
+char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
 {
     // Calcola la lunghezza delle stringhe rappresentanti key e l
     int key_len = snprintf(NULL, 0, "%llu", key);
     int l_len = snprintf(NULL, 0, "%zu", l);
 
     // Dimensione totale: key + sep + l + sep + testo + sep + terminatore
-    int msg_size = key_len + 1 + l_len + 1 + l + 1;
-    char *msg = malloc(msg_size);
+    *msg_len = key_len + 1 + l_len + 1 + l + 1;
+    char *msg = malloc(*msg_len);
     if (!msg)
         return NULL;
 
     int offset = 0;
     // Scrivi key
-    offset += snprintf(msg + offset, msg_size - offset, "%llu", key);
+    offset += snprintf(msg + offset, *msg_len - offset, "%llu", key);
     msg[offset++] = SEPARATOR;
     // Scrivi l
-    offset += snprintf(msg + offset, msg_size - offset, "%zu", l);
+    offset += snprintf(msg + offset, *msg_len - offset, "%zu", l);
     msg[offset++] = SEPARATOR;
     // Scrivi il testo (può contenere byte nulli, quindi usa memcpy)
     memcpy(msg + offset, text, l);

@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     int sockfd;
     struct sockaddr_in server_addr;
     int p = 5;
-    // argv[1] = "emiliano";
+    argv[1] = "emiliano";
     // argomenti
     // fprintf(stderr, "%s", buffer);
     if (strlen(argv[1]) != 8)
@@ -64,13 +64,14 @@ int main(int argc, char *argv[])
     unblock_signals(set);
 
     // 4. Invia messaggio
-    char *msg = make_msg(key, text_buffer, l);
-
+    size_t msg_len;
+    char *msg = make_msg(key, text_buffer, l, &msg_len);
+    // printf("Lunghezza messaggio: %d",msg)
     // Manda la chiave al server con send
     printf("[CLIENT] Inviando messaggio: %s\n", msg);
-    send(sockfd, msg, strlen(msg), 0);
+    int n = send(sockfd, msg, msg_len, 0);
     free(msg);
-
+    printf("Lunghezza mes: %d", n);
     char buffer[4];
     // 5. Riceve risposta
     memset(buffer, 0, 4);
