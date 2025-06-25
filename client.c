@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 
     printf("Key: %s\n", key_s);
     // char *text = read_file("mess_lungo.txt");
-    char *text = read_file("mess_lungo.txt");
+    char *text = read_file("prova.txt");
     size_t orig_l = strlen(text);
     // text_buffer = malloc(l + 1);
     // text_buffer[l] = '\0';
@@ -40,14 +40,6 @@ int main(int argc, char *argv[])
     sigaddset(&set, SIGUSR1);
     sigaddset(&set, SIGUSR2);
     sigaddset(&set, SIGTERM);
-
-    // printf("Testo: %s\nTesto cifrato: %s\n", text, text_buffer);
-    // Stampa un char alla volta con un for
-    // for (int i = 0; i < l; i++)
-    // {
-    //     printf("%02x ", (unsigned char)text_buffer[i]);
-    // }
-    // printf("\n");
 
     sockfd = init_socket(PORT, SERVER_IP, &server_addr);
 
@@ -66,12 +58,11 @@ int main(int argc, char *argv[])
     // 4. Invia messaggio
     size_t msg_len;
     char *msg = make_msg(key, text_buffer, l, &msg_len);
-    // printf("Lunghezza messaggio: %d",msg)
+
     // Manda la chiave al server con send
     printf("[CLIENT] Inviando messaggio: %s\n", msg);
     int n = send(sockfd, msg, msg_len, 0);
     free(msg);
-    printf("Lunghezza mes: %d", n);
     char buffer[4];
     // 5. Riceve risposta
     memset(buffer, 0, 4);

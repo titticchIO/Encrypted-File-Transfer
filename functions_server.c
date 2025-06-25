@@ -141,11 +141,6 @@ void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char
     }
     memcpy(*text, sep2 + 1, *text_len);
     (*text)[*text_len] = '\0'; // Per sicurezza, anche se il testo può contenere '\0'
-
-    // Debug:
-    // stampa il testo ricevuto come dati binari
-    fwrite(*text, 1, *text_len, stdout);
-    printf("\n");
 }
 
 void *manage_client_message(void *arg)
@@ -240,15 +235,7 @@ void *decypher_partial(void *arg)
 
 void decypher_block(char *block, int offset, unsigned long long key, char *text_buffer)
 {
-    // char *key_s = bits_to_string(key);  //DEBUG
-    // printf("Key: %s\n", key_s);          //DEBUG
     unsigned long long block_bytes = string_to_bits(block);
-    printf("Blocco in binario: ");
-    for (int i = 63; i >= 0; i--)
-    {
-        printf("%llu", (block_bytes >> i) & 1ULL);
-    }
-    printf("\n");
     unsigned long long decyphered_bytes = block_bytes ^ key;
     char *decyphered_block = bits_to_string(decyphered_bytes);
     memcpy(text_buffer + offset, decyphered_block, 8);

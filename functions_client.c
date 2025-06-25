@@ -70,7 +70,6 @@ size_t divide_blocks(char *text, int p, size_t L)
         free(text_buffer);
     text_buffer = malloc(L + 1);
     memset(text_buffer, 0, L + 1);
-    printf("numerosiuuuum:%ld\n", L);
     manage_threads(text, blocks_per_thread, blocks_last_thread, p);
     return L;
 }
@@ -129,12 +128,6 @@ void cypher_block(const char *block, int offset)
 
     unsigned long long block_bytes = string_to_bits(block);
     unsigned long long cyphered_bytes = block_bytes ^ key; // XOR
-    printf("Blocco in binario: ");
-    for (int i = 63; i >= 0; i--)
-    {
-        printf("%llu", (cyphered_bytes >> i) & 1ULL);
-    }
-    printf("\n");
     char *cyphered_block = bits_to_string(cyphered_bytes);
     memcpy(text_buffer + offset, cyphered_block, 8);
     free(cyphered_block);
@@ -203,7 +196,7 @@ char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
     // Scrivi key
     offset += snprintf(msg + offset, *msg_len - offset, "%llu", key);
     msg[offset++] = SEPARATOR;
-    // Scrivi l
+    // Scrivi la lunghezza del testo
     offset += snprintf(msg + offset, *msg_len - offset, "%zu", l);
     msg[offset++] = SEPARATOR;
     // Scrivi il testo (può contenere byte nulli, quindi usa memcpy)
