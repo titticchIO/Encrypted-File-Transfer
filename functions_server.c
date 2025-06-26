@@ -1,5 +1,6 @@
 #include "header_server.h"
 
+// Legge e valida gli argomenti da linea di comando
 void read_args(char **argv, int *p, char **s, int *l)
 {
     *p = atoi(argv[1]);
@@ -7,6 +8,7 @@ void read_args(char **argv, int *p, char **s, int *l)
     *l = atoi(argv[3]);
 }
 
+// Gestisce la terminazione del server su segnale
 void termination_handler(int signum)
 {
     printf("\n[SERVER] Terminazione richiesta. Chiudo il server...\n");
@@ -15,6 +17,7 @@ void termination_handler(int signum)
     exit(0);
 }
 
+// Restituisce un set di segnali da gestire
 sigset_t get_set()
 {
     sigset_t set;
@@ -27,6 +30,7 @@ sigset_t get_set()
     return set;
 }
 
+// Inizializza il socket del server
 void init_socket(int port, int *server_fd)
 {
     struct sockaddr_in addr;
@@ -68,6 +72,7 @@ void init_socket(int port, int *server_fd)
     printf("[SERVER] In ascolto su porta %d...\n", PORT);
 }
 
+// Gestisce le nuove connessioni in ingresso
 void manage_connections()
 {
     struct sockaddr_in addr;
@@ -93,6 +98,7 @@ void manage_connections()
     }
 }
 
+// Riceve un messaggio completo dal client
 char *receive_msg(int client_fd)
 {
     char buffer[BUF_SIZE];
@@ -124,6 +130,7 @@ char *receive_msg(int client_fd)
     return msg;
 }
 
+// Estrae chiave e testo dal messaggio ricevuto
 void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char **text)
 {
     // Formato messaggio: key SEPARATOR text_len SEPARATOR text SEPARATOR
@@ -164,6 +171,7 @@ void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char
     (*text)[*text_len] = '\0'; // Per sicurezza, anche se il testo può contenere '\0'
 }
 
+// Gestisce la comunicazione con un singolo client (thread)
 void *manage_client_message(void *arg)
 {
     c_thread_args *args = (c_thread_args *)arg;
@@ -224,6 +232,7 @@ void unblock_signals(sigset_t set)
     }
 }
 
+// Gestisce la decifratura parallela del testo
 char *manage_threads(char *text, size_t text_len, unsigned long long key)
 {
     char *text_buffer = malloc(text_len + 1);
@@ -276,6 +285,7 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
     return text_buffer;           // Restituisce il buffer con il testo decifrato
 }
 
+// Funzione eseguita da ciascun thread per decifrare una porzione di testo
 void *decypher_partial(void *arg)
 {
     d_thread_args *args = (d_thread_args *)arg;
@@ -296,6 +306,7 @@ void *decypher_partial(void *arg)
     free(args);
 }
 
+// Decifra un blocco di testo e lo scrive nel buffer
 void decypher_block(char *block, int offset, unsigned long long key, char *text_buffer)
 {
     unsigned long long block_bytes = string_to_bits(block);
@@ -305,6 +316,7 @@ void decypher_block(char *block, int offset, unsigned long long key, char *text_
     free(decyphered_block);
 }
 
+// Converte una stringa di 8 caratteri in un intero a 64 bit
 unsigned long long string_to_bits(const char *str)
 {
     unsigned long long result = 0;
@@ -320,6 +332,7 @@ unsigned long long string_to_bits(const char *str)
     return result;
 }
 
+// Converte un intero a 64 bit in una stringa di 8 caratteri
 char *bits_to_string(unsigned long long bits)
 {
     char *str = malloc(9); // 8 byte + terminatore di stringa
@@ -332,6 +345,7 @@ char *bits_to_string(unsigned long long bits)
     return str;
 }
 
+// Scrive il testo decifrato su file
 void write_file(char *text, char *pathfile)
 {
     FILE *file = fopen(pathfile, "w");
@@ -344,6 +358,7 @@ void write_file(char *text, char *pathfile)
     fclose(file);
 }
 
+// Imposta i gestori dei segnali per la terminazione sicura
 void setup_signal_handlers()
 {
     struct sigaction sa;

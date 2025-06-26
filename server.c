@@ -1,6 +1,5 @@
 #include "header_server.h"
 #include "functions_server.c"
-#include <semaphore.h>
 
 sem_t available_connections;
 int p;
@@ -9,17 +8,19 @@ char *s;
 
 int main(int argc, char *argv[])
 {
-    // ARGOMENTI DA TERMINALE
+    // argomenti da terminale
     int l;
     read_args(argv, &p, &s, &l);
 
-    // ARGOMENTI DA TERMINALE
-    sem_init(&available_connections, 0, l); // Inizializza il semaforo per le connessioni attive
+    // Inizializza il semaforo per le connessioni attive
+    sem_init(&available_connections, 0, l);
 
     setup_signal_handlers();
 
+    // Inizializza il socket del server
     init_socket(PORT, &server_fd);
-    manage_connections();
 
+    // Inizia la gestione delle connessioni
+    manage_connections();
     return 0;
 }
