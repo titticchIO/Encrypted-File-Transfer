@@ -3,6 +3,19 @@
 unsigned long long key = 0;
 char *text_buffer = NULL;
 
+void read_args(char **argv, char **filename, char **key_s, int *p, char **ip, int *port)
+{
+    *filename = strdup(argv[1]); // file input
+    if (strlen(argv[2]) != 8)
+    { // controllo lunghezza chiave
+        fprintf(stderr, "%s", "La chiave deve avere lunghezza 8\n");
+        exit(1);
+    }
+    *key_s = strdup(argv[2]);
+    *p = atoi(argv[3]);
+    *ip = strdup(argv[4]);
+    *port = atoi(argv[5]);
+}
 char *read_file(char *filename)
 {
     FILE *file = fopen(filename, "r");
@@ -30,7 +43,19 @@ char *read_file(char *filename)
     return buffer;
 }
 
-// Blocca i segnali SIGINT, SIGALRM, SIGUSR1, SIGUSR2, SIGTERM
+sigset_t get_set()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGTERM);
+    return set;
+}
+
+// Blocca i segnali in set
 void block_signals(sigset_t set)
 {
 
@@ -41,7 +66,7 @@ void block_signals(sigset_t set)
     }
 }
 
-// Sblocca i segnali SIGINT, SIGALRM, SIGUSR1, SIGUSR2, SIGTERM
+// Sblocca i segnali in set
 void unblock_signals(sigset_t set)
 {
 
@@ -51,6 +76,7 @@ void unblock_signals(sigset_t set)
         exit(EXIT_FAILURE);
     }
 }
+
 size_t divide_blocks(char *text, int p, size_t L)
 {
     int padding_len = 8 - (L % 8);

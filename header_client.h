@@ -30,7 +30,9 @@ extern unsigned long long key;
 extern char *text_buffer;
 
 // Funzioni dichiarate in functions_client.c
+void read_args(char **argv, char **file_name, char **key_s, int *p, char **ip, int *port);
 char *read_file(char *filename);
+sigset_t get_set();
 void block_signals(sigset_t set);
 void unblock_signals(sigset_t set);
 size_t divide_blocks(char *text, int p, size_t L);

@@ -16,11 +16,6 @@
 #define SEPARATOR '\x1F'
 #define EOT '\x03'
 
-extern sem_t available_connections;
-extern int p;
-extern int server_fd;
-extern char *prefix;
-
 typedef struct
 {
     char *partial;
@@ -36,7 +31,13 @@ typedef struct
     int serial;
 } c_thread_args;
 
+extern sem_t available_connections;
+extern int p;
+extern int server_fd;
+extern char *s;
+
 // Funzioni di functions_server.c
+void read_args(char **argv, int *p, char **s, int *l);
 void termination_handler(int signum);
 void init_socket(int port, int *server_fd);
 void manage_connections();
@@ -49,5 +50,9 @@ void decypher_block(char *block, int offset, unsigned long long key, char *text_
 unsigned long long string_to_bits(const char *str);
 char *bits_to_string(unsigned long long bits);
 void write_file(char *text, char *pathfile);
+void block_signals(sigset_t set);
+void unblock_signals(sigset_t set);
+sigset_t get_set();
+void setup_signal_handlers();
 
 #endif

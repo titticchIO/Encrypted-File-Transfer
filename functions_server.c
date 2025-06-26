@@ -1,11 +1,30 @@
 #include "header_server.h"
 
+void read_args(char **argv, int *p, char **s, int *l)
+{
+    *p = atoi(argv[1]);
+    *s = argv[2];
+    *l = atoi(argv[3]);
+}
+
 void termination_handler(int signum)
 {
     printf("\n[SERVER] Terminazione richiesta. Chiudo il server...\n");
     sem_destroy(&available_connections);
     close(server_fd);
     exit(0);
+}
+
+sigset_t get_set()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGTERM);
+    return set;
 }
 
 void init_socket(int port, int *server_fd)
@@ -155,7 +174,10 @@ void *manage_client_message(void *arg)
     size_t text_len = 0;
     char *text = NULL;
     get_key_and_text(msg, &key, &text_len, &text);
+    sigset_t set = get_set();
+    block_signals(set);
     char *decyphered_text = manage_threads(text, text_len, key);
+    unblock_signals(set);
     char *eot = strchr(decyphered_text, EOT);
     *eot = '\0';
 
@@ -164,14 +186,42 @@ void *manage_client_message(void *arg)
     close(client_fd);
 
     int len_serial = snprintf(NULL, 0, "%d", serial);
-    int filename_len = strlen(prefix) + len_serial + 5; // 4 per ".txt" + 1 per '\0'
+    int filename_len = strlen(s) + len_serial + 5;
     char *filename = malloc(filename_len);
-    snprintf(filename, filename_len, "%s%d.txt", prefix, serial);
+    snprintf(filename, filename_len, "%s%d.txt", s, serial);
     filename[filename_len] = '\0';
     printf("[SERVER] Scrivendo sul file: %s\n", filename);
+    block_signals(set);
     write_file(decyphered_text, filename);
+    unblock_signals(set);
+    printf("[SERVER] Fine scrittura sul file: %s\n", filename);
     free(filename);
+    free(text);
+    free(msg);
+    free(decyphered_text);
     sem_post(&available_connections);
+}
+
+// Blocca i segnali in set
+void block_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nel blocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Sblocca i segnali in set
+void unblock_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nello sblocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
 }
 
 char *manage_threads(char *text, size_t text_len, unsigned long long key)
@@ -222,7 +272,6 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
         pthread_join(tids[i], NULL);
     }
     free(tids);
-    free(text);                   // Libera il testo originale
     text_buffer[text_len] = '\0'; // Assicurati che il buffer sia terminato correttamente
     return text_buffer;           // Restituisce il buffer con il testo decifrato
 }
@@ -293,4 +342,27 @@ void write_file(char *text, char *pathfile)
     }
     fwrite(text, sizeof(char), strlen(text), file);
     fclose(file);
+}
+
+void setup_signal_handlers()
+{
+    struct sigaction sa;
+    sa.sa_handler = termination_handler;
+    sigemptyset(&sa.sa_mask);
+
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(1);
+    }
+    if (sigaction(SIGTERM, &sa, NULL) == -1)
+    {
+        perror("sigterm");
+        exit(1);
+    }
+    if (sigaction(SIGTSTP, &sa, NULL) == -1)
+    {
+        perror("sigtstp");
+        exit(1);
+    }
 }
