@@ -1,33 +1,46 @@
 #include "header_server.h"
+int delay = 0;
 
 // Legge e valida gli argomenti da linea di comando
-void read_args(char **argv, int *p, char **s, int *l)
+void read_args(int argc, char **argv, int *p, char **s, int *l)
 {
-    *p = atoi(argv[1]);
-    *s = argv[2];
-    *l = atoi(argv[3]);
-}
+    char *endptr;
 
-// Gestisce la terminazione del server su segnale
-void termination_handler(int signum)
-{
-    printf("\n[SERVER] Terminazione richiesta. Chiudo il server...\n");
-    sem_destroy(&available_connections);
-    close(server_fd);
-    exit(0);
-}
+    // controlli sul numero di argomenti del server
+    if (argc != 4)
+    {
+        fprintf(stderr, "ERRORE ARGOMENTI\nGli argomenti devono essere:\n1) Grado parallelismo decifratura\n2) Prefisso file output\n3) Massimo connessioni concorrenti\n");
+        exit(1);
+    }
 
-// Restituisce un set di segnali da gestire
-sigset_t get_set()
-{
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGUSR1);
-    sigaddset(&set, SIGUSR2);
-    sigaddset(&set, SIGTERM);
-    return set;
+    // controlli sull'argomento p
+    *p = (int)strtol(argv[1], &endptr, 10); // grado di parallelismo
+    if (*endptr != '\0' || *p <= 0)
+    {
+        fprintf(stderr, "Errore: Il grado di parallelismo ('%s') deve essere un numero intero positivo.\n", argv[1]);
+        exit(1);
+    }
+
+    // controlli sull'argomento s
+    if (strlen(argv[2]) == 0)
+    {
+        fprintf(stderr, "Errore: Il prefisso del file non può essere vuoto.\n");
+        exit(1);
+    }
+    if (strchr(argv[2], '/') != NULL)
+    {
+        fprintf(stderr, "Errore: Il prefisso del file ('%s') non può contenere il carattere '/'.\n", argv[2]);
+        exit(1);
+    }
+    *s = argv[2]; // prefisso file di scrittura
+
+    // controllo sull'argomento l
+    *l = (int)strtol(argv[3], &endptr, 10); // numero massimo di connessioni concorrenti
+    if (*endptr != '\0' || *l <= 0)
+    {
+        fprintf(stderr, "Errore: Il numero massimo di connessioni ('%s') deve essere un numero intero positivo.\n", argv[3]);
+        exit(1);
+    }
 }
 
 // Inizializza il socket del server
@@ -68,8 +81,7 @@ void init_socket(int port, int *server_fd)
         close(*server_fd);
         exit(1);
     }
-
-    printf("[SERVER] In ascolto su porta %d...\n", PORT);
+    printf("[SERVER] Pronto ad accettare connessioni sulla porta %d...\n\n", port);
 }
 
 // Gestisce le nuove connessioni in ingresso
@@ -80,15 +92,34 @@ void manage_connections()
     int serial = 0;
     while (1)
     {
-        sem_wait(&available_connections); // Attende che ci sia una connessione disponibile
-        serial++;
         int client_fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
         if (client_fd < 0)
         {
             perror("accept");
             continue;
         }
-
+        printf("[SERVER] Connessione accettata da %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+        // Tenta di acquisire un semaforo senza bloccare
+        if (sem_trywait(&available_connections) == -1)
+        {
+            // Se EAGAIN, il server è occupato
+            if (errno == EAGAIN)
+            {
+                printf("Server occupato. Rifiuto connessione da %s:%d\n",
+                       inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+                send(client_fd, "BUSY", 5, 0); // Invia un messaggio di "occupato"
+                close(client_fd);
+                continue; // Torna ad attendere la prossima connessione
+            }
+            else
+            {
+                // Altro errore con sem_trywait
+                perror("sem_trywait");
+                close(client_fd);
+                continue;
+            }
+        }
+        serial++;
         c_thread_args *args = malloc(sizeof(c_thread_args));
         args->client_fd = client_fd;
         args->serial = serial;
@@ -96,6 +127,48 @@ void manage_connections()
         pthread_create(&tid, NULL, *manage_client_message, args);
         pthread_detach(tid);
     }
+}
+
+// Gestisce la comunicazione con un singolo client (thread)
+void *manage_client_message(void *arg)
+{
+    sleep(delay);
+    c_thread_args *args = (c_thread_args *)arg;
+    int client_fd = args->client_fd;
+    int serial = args->serial;
+    printf("[SERVER] Gestione client #%d (fd=%d) iniziata.\n", serial, client_fd);
+    char *msg = receive_msg(client_fd);
+    printf("[SERVER] Messaggio ricevuto dal client #%d.\n", serial);
+    unsigned long long key = 0;
+    size_t text_len = 0;
+    char *text = NULL;
+    get_key_and_text(msg, &key, &text_len, &text);
+    sigset_t set = get_set();
+    block_signals(set);
+    char *decyphered_text = manage_threads(text, text_len, key);
+    unblock_signals(set);
+    printf("[SERVER] Decifratura completata.\n");
+    char *eot = strchr(decyphered_text, EOT);
+    *eot = '\0';
+
+    const char *response = "ACK";
+    send(client_fd, response, 4, 0);
+    close(client_fd);
+
+    int len_serial = snprintf(NULL, 0, "%d", serial);
+    int filename_len = strlen(s) + len_serial + 5;
+    char *filename = malloc(filename_len);
+    snprintf(filename, filename_len, "%s%d.txt", s, serial);
+    filename[filename_len] = '\0';
+    printf("[SERVER] Scrivendo sul file: %s\n", filename);
+    block_signals(set);
+    write_file(decyphered_text, filename);
+    unblock_signals(set);
+    printf("[SERVER] Fine scrittura sul file: %s\n\n", filename);
+    // Cleanup
+    cleanup_client_resources(client_fd, msg, text, decyphered_text, filename);
+    free(args);
+    sem_post(&available_connections);
 }
 
 // Riceve un messaggio completo dal client
@@ -169,67 +242,6 @@ void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char
     }
     memcpy(*text, sep2 + 1, *text_len);
     (*text)[*text_len] = '\0'; // Per sicurezza, anche se il testo può contenere '\0'
-}
-
-// Gestisce la comunicazione con un singolo client (thread)
-void *manage_client_message(void *arg)
-{
-    c_thread_args *args = (c_thread_args *)arg;
-    int client_fd = args->client_fd;
-    int serial = args->serial;
-    char *msg = receive_msg(client_fd);
-    unsigned long long key = 0;
-    size_t text_len = 0;
-    char *text = NULL;
-    get_key_and_text(msg, &key, &text_len, &text);
-    sigset_t set = get_set();
-    block_signals(set);
-    char *decyphered_text = manage_threads(text, text_len, key);
-    unblock_signals(set);
-    char *eot = strchr(decyphered_text, EOT);
-    *eot = '\0';
-
-    const char *response = "ACK";
-    send(client_fd, response, strlen(response), 0);
-    close(client_fd);
-
-    int len_serial = snprintf(NULL, 0, "%d", serial);
-    int filename_len = strlen(s) + len_serial + 5;
-    char *filename = malloc(filename_len);
-    snprintf(filename, filename_len, "%s%d.txt", s, serial);
-    filename[filename_len] = '\0';
-    printf("[SERVER] Scrivendo sul file: %s\n", filename);
-    block_signals(set);
-    write_file(decyphered_text, filename);
-    unblock_signals(set);
-    printf("[SERVER] Fine scrittura sul file: %s\n", filename);
-    free(filename);
-    free(text);
-    free(msg);
-    free(decyphered_text);
-    sem_post(&available_connections);
-}
-
-// Blocca i segnali in set
-void block_signals(sigset_t set)
-{
-
-    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
-    {
-        perror("Errore nel blocco dei segnali");
-        exit(EXIT_FAILURE);
-    }
-}
-
-// Sblocca i segnali in set
-void unblock_signals(sigset_t set)
-{
-
-    if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
-    {
-        perror("Errore nello sblocco dei segnali");
-        exit(EXIT_FAILURE);
-    }
 }
 
 // Gestisce la decifratura parallela del testo
@@ -358,6 +370,19 @@ void write_file(char *text, char *pathfile)
     fclose(file);
 }
 
+// Pulisce tutte le risorse del client
+void cleanup_client_resources(int client_fd, char *msg, char *text, char *decyphered_text, char *filename)
+{
+    if (client_fd >= 0)
+    {
+        close(client_fd);
+    }
+    free(msg);
+    free(text);
+    free(decyphered_text);
+    free(filename);
+}
+
 // Imposta i gestori dei segnali per la terminazione sicura
 void setup_signal_handlers()
 {
@@ -379,5 +404,49 @@ void setup_signal_handlers()
     {
         perror("sigtstp");
         exit(1);
+    }
+}
+
+// Restituisce un set di segnali da gestire
+sigset_t get_set()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGTERM);
+    return set;
+}
+
+// Gestisce la terminazione del server su segnale
+void termination_handler(int signum)
+{
+    printf("\n[SERVER] Terminazione richiesta. Chiudo il server...\n");
+    sem_destroy(&available_connections);
+    close(server_fd);
+    exit(0);
+}
+
+// Blocca i segnali in set
+void block_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nel blocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Sblocca i segnali in set
+void unblock_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nello sblocco dei segnali");
+        exit(EXIT_FAILURE);
     }
 }

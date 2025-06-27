@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 {
     // argomenti da terminale
     int l;
-    read_args(argv, &p, &s, &l);
+    read_args(argc, argv, &p, &s, &l);
 
     // Inizializza il semaforo per le connessioni attive
     sem_init(&available_connections, 0, l);

@@ -4,18 +4,56 @@ unsigned long long key = 0;
 char *text_buffer = NULL;
 
 // Legge e valida gli argomenti da linea di comando
-void read_args(char **argv, char **filename, char **key_s, int *p, char **ip, int *port)
+void read_args(int argc, char **argv, char **filename, char **key_s, int *p, char **ip, int *port)
 {
-    *filename = strdup(argv[1]); // file input
-    if (strlen(argv[2]) != 8)
-    { // controllo lunghezza chiave
-        fprintf(stderr, "%s", "La chiave deve avere lunghezza 8\n");
+    char *endptr;
+
+    // controlli sul numero di argomenti del client
+    if (argc != 6)
+    {
+        fprintf(stderr, "ERRORE ARGOMENTI\nGli argomenti devono essere:\n1) Nome file input\n2) Chiave (8 caratteri)\n3) Grado parallelismo cifratura\n4) IP del server\n5) Porta del server\n");
         exit(1);
     }
-    *key_s = strdup(argv[2]);
-    *p = atoi(argv[3]);
-    *ip = strdup(argv[4]);
-    *port = atoi(argv[5]);
+
+    // controlli sull'argomento filename
+    *filename = argv[1]; // file input
+    if (strlen(*filename) == 0)
+    {
+        fprintf(stderr, "Errore: Il nome del file non può essere vuoto.\n");
+        exit(1);
+    }
+
+    // controlli sull'argomento key_s
+    if (strlen(argv[2]) != 8)
+    {
+        fprintf(stderr, "Errore: La chiave ('%s') deve avere lunghezza esattamente 8 caratteri.\n", argv[2]);
+        exit(1);
+    }
+    *key_s = argv[2]; // chiave di cifratura
+
+    // controlli sull'argomento p
+    *p = (int)strtol(argv[3], &endptr, 10); // grado di parallelismo nella cifratura
+    if (*endptr != '\0' || *p <= 0)
+    {
+        fprintf(stderr, "Errore: Il grado di parallelismo ('%s') deve essere un numero intero positivo.\n", argv[3]);
+        exit(1);
+    }
+
+    // controlli sull'argomento ip
+    *ip = argv[4]; // ip del server
+    if (strlen(*ip) == 0)
+    {
+        fprintf(stderr, "Errore: L'indirizzo IP del server non può essere vuoto.\n");
+        exit(1);
+    }
+
+    // controlli sull'argomento port
+    *port = (int)strtol(argv[5], &endptr, 10); // porta del server
+    if (*endptr != '\0' || *port <= 0 || *port > 65535)
+    {
+        fprintf(stderr, "Errore: La porta del server ('%s') deve essere un numero intero tra 1 e 65535.\n", argv[5]);
+        exit(1);
+    }
 }
 
 // Legge il contenuto di un file e lo restituisce come stringa
@@ -45,40 +83,52 @@ char *read_file(char *filename)
     fclose(file);
     return buffer;
 }
-
-// Restituisce un set di segnali da gestire
-sigset_t get_set()
+// Gestisce la connessione al server
+int connect_to_server(int port, const char *ip, struct sockaddr_in *server_addr)
 {
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGUSR1);
-    sigaddset(&set, SIGUSR2);
-    sigaddset(&set, SIGTERM);
-    return set;
+    int sockfd = init_socket(port, ip, server_addr);
+
+    printf("[CLIENT] Connessione al server %s:%d...\n", ip, port);
+    if (connect(sockfd, (struct sockaddr *)server_addr, sizeof(*server_addr)) < 0)
+    {
+        perror("connect");
+        close(sockfd);
+        exit(1);
+    }
+
+    return sockfd;
 }
 
-// Blocca i segnali specificati
-void block_signals(sigset_t set)
+// Inizializza e restituisce un socket TCP
+int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr)
 {
+    int sockfd;
 
-    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
+    // 1. Crea socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
     {
-        perror("Errore nel blocco dei segnali");
-        exit(EXIT_FAILURE);
+        perror("socket");
+        exit(1);
     }
+
+    // 2. Imposta indirizzo del server
+    memset(server_addr, 0, sizeof(*server_addr));
+    server_addr->sin_family = AF_INET;
+    server_addr->sin_port = htons(port);
+    inet_pton(AF_INET, server_ip, &server_addr->sin_addr);
+    return sockfd;
 }
 
-// Sblocca i segnali specificati
-void unblock_signals(sigset_t set)
+// Gestisce il processo di cifratura con gestione dei segnali
+size_t encrypt_msg(char *text, int p, size_t orig_l)
 {
-
-    if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
-    {
-        perror("Errore nello sblocco dei segnali");
-        exit(EXIT_FAILURE);
-    }
+    sigset_t set = get_set();
+    block_signals(set);
+    size_t l = divide_blocks(text, p, orig_l);
+    unblock_signals(set);
+    printf("[CLIENT] Cifratura completata.\n");
+    return l;
 }
 
 // Divide il testo in blocchi da cifrare e gestisce il padding
@@ -196,25 +246,22 @@ char *bits_to_string(unsigned long long bits)
     return str;
 }
 
-// Inizializza e restituisce un socket TCP
-int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr)
+// Gestisce l'invio del messaggio al server
+void send_message_to_server(int sockfd, unsigned long long key, char *text_buffer, size_t l)
 {
-    int sockfd;
+    size_t msg_len;
+    char *msg = make_msg(key, text_buffer, l, &msg_len);
 
-    // 1. Crea socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
+    printf("[CLIENT] Invio messaggio...\n");
+    int n = send(sockfd, msg, msg_len, 0);
+    if (n < 0)
     {
-        perror("socket");
+        perror("send");
+        free(msg);
         exit(1);
     }
 
-    // 2. Imposta indirizzo del server
-    memset(server_addr, 0, sizeof(*server_addr));
-    server_addr->sin_family = AF_INET;
-    server_addr->sin_port = htons(port);
-    inet_pton(AF_INET, server_ip, &server_addr->sin_addr);
-    return sockfd;
+    free(msg);
 }
 
 // Crea il messaggio da inviare al server secondo il protocollo
@@ -243,4 +290,65 @@ char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
     msg[offset] = SEPARATOR;
 
     return msg;
+}
+
+// Gestisce la ricezione dell'ACK dal server
+void receive_ack(int sockfd)
+{
+    char buffer[5];
+    memset(buffer, 0, 5);
+    int n = recv(sockfd, buffer, 5, 0);
+    if (n < 0)
+    {
+        perror("recv");
+        exit(1);
+    }
+
+    if (strcmp(buffer, "ACK") == 0)
+    {
+        printf("[CLIENT] ACK ricevuto\n");
+    }
+    else if (strcmp(buffer, "BUSY") == 0)
+    {
+        printf("[CLIENT] Connection refused, no available connections\n");
+    }
+    else
+    {
+        printf("[CLIENT] Risposta inaspettata: %s\n", buffer);
+    }
+}
+
+// Restituisce un set di segnali da gestire
+sigset_t get_set()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGTERM);
+    return set;
+}
+
+// Blocca i segnali specificati
+void block_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nel blocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Sblocca i segnali specificati
+void unblock_signals(sigset_t set)
+{
+
+    if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
+    {
+        perror("Errore nello sblocco dei segnali");
+        exit(EXIT_FAILURE);
+    }
 }
