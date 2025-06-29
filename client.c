@@ -1,4 +1,3 @@
-// client.c
 #include "functions_client.c"
 #include "header_client.h"
 

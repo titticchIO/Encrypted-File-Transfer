@@ -59,6 +59,9 @@ void read_args(int argc, char **argv, char **filename, char **key_s, int *p, cha
 // Legge il contenuto di un file e lo restituisce come stringa
 char *read_file(char *filename)
 {
+    long dimension;
+    int read;
+    char *buffer;
     FILE *file = fopen(filename, "r");
     if (!file)
     {
@@ -67,10 +70,10 @@ char *read_file(char *filename)
     }
 
     fseek(file, 0, SEEK_END);
-    long dimension = ftell(file);
+    dimension = ftell(file);
     rewind(file);
 
-    char *buffer = malloc(dimension + 1);
+    buffer = malloc(dimension + 1);
     if (!buffer)
     {
         perror("Errore nell'allocazione di memoria");
@@ -78,7 +81,7 @@ char *read_file(char *filename)
         return NULL;
     }
 
-    int read = fread(buffer, sizeof(char), dimension, file);
+    read = fread(buffer, sizeof(char), dimension, file);
     buffer[read] = '\0';
     fclose(file);
     return buffer;
@@ -134,7 +137,8 @@ size_t encrypt_msg(char *text, int p, size_t orig_l)
 // Divide il testo in blocchi da cifrare e gestisce il padding
 size_t divide_blocks(char *text, int p, size_t L)
 {
-    int padding_len = 8 - (L % 8);
+    int padding_len, blocks_num, blocks_per_thread, blocks_last_thread;
+    padding_len = 8 - (L % 8);
     if (padding_len < 8)
     {
         text = realloc(text, L + padding_len + 1);
@@ -142,9 +146,9 @@ size_t divide_blocks(char *text, int p, size_t L)
         text[L + padding_len] = '\0';
         L += padding_len;
     }
-    int blocks_num = L / 8;
-    int blocks_per_thread = blocks_num / p;
-    int blocks_last_thread = blocks_num % p;
+    blocks_num = L / 8;
+    blocks_per_thread = blocks_num / p;
+    blocks_last_thread = blocks_num % p;
 
     // Alloca il buffer globale per il testo cifrato
     if (text_buffer)
@@ -158,22 +162,26 @@ size_t divide_blocks(char *text, int p, size_t L)
 // Gestisce la creazione e sincronizzazione dei thread di cifratura
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p)
 {
-    int total_blocks = (blocks_per_thread * p) + blocks_last_thread;
-    int total_bytes = total_blocks * 8;
+    int total_blocks, total_bytes, blocks, start;
+    char *partial;
+    thread_args *args;
     pthread_t *tids = malloc(sizeof(pthread_t) * p);
+
+    total_blocks = (blocks_per_thread * p) + blocks_last_thread;
+    total_bytes = total_blocks * 8;
 
     for (int i = 0; i < p; i++)
     {
-        int blocks = blocks_per_thread;
+        blocks = blocks_per_thread;
         if (i == p - 1 && blocks_last_thread > 0)
             blocks += blocks_last_thread;
 
-        int start = i * blocks_per_thread * 8;
-        char *partial = malloc(blocks * 8 + 1);
+        start = i * blocks_per_thread * 8;
+        partial = malloc(blocks * 8 + 1);
         strncpy(partial, text + start, blocks * 8);
         partial[blocks * 8] = '\0';
 
-        thread_args *args = malloc(sizeof(thread_args));
+        args = malloc(sizeof(thread_args));
         args->partial = partial;
         args->offset = start;
 
@@ -250,10 +258,11 @@ char *bits_to_string(unsigned long long bits)
 void send_message_to_server(int sockfd, unsigned long long key, char *text_buffer, size_t l)
 {
     size_t msg_len;
+    int n;
     char *msg = make_msg(key, text_buffer, l, &msg_len);
 
     printf("[CLIENT] Invio messaggio...\n");
-    int n = send(sockfd, msg, msg_len, 0);
+    n = send(sockfd, msg, msg_len, 0);
     if (n < 0)
     {
         perror("send");
@@ -267,17 +276,18 @@ void send_message_to_server(int sockfd, unsigned long long key, char *text_buffe
 // Crea il messaggio da inviare al server secondo il protocollo
 char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
 {
+    char *msg;
+    int offset = 0;
     // Calcola la lunghezza delle stringhe rappresentanti key e l
     int key_len = snprintf(NULL, 0, "%llu", key);
     int l_len = snprintf(NULL, 0, "%zu", l);
 
     // Dimensione totale: key + sep + l + sep + testo + sep + terminatore
     *msg_len = key_len + 1 + l_len + 1 + l + 1;
-    char *msg = malloc(*msg_len);
+    msg = malloc(*msg_len);
     if (!msg)
         return NULL;
 
-    int offset = 0;
     // Scrivi key
     offset += snprintf(msg + offset, *msg_len - offset, "%llu", key);
     msg[offset++] = SEPARATOR;
@@ -296,8 +306,10 @@ char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
 void receive_ack(int sockfd)
 {
     char buffer[5];
+    int n;
+
     memset(buffer, 0, 5);
-    int n = recv(sockfd, buffer, 5, 0);
+    n = recv(sockfd, buffer, 5, 0);
     if (n < 0)
     {
         perror("recv");
