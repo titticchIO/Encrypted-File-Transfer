@@ -11,7 +11,7 @@ void read_args(int argc, char **argv, char **filename, char **key_s, int *p, cha
     // controlli sul numero di argomenti del client
     if (argc != 6)
     {
-        fprintf(stderr, "ERRORE ARGOMENTI\nGli argomenti devono essere:\n1) Nome file input\n2) Chiave (8 caratteri)\n3) Grado parallelismo cifratura\n4) IP del server\n5) Porta del server\n");
+        fprintf(stderr, "ERROR ARGUMENTS\nThe arguments must be:\n1) Input file name\n2) Key (8 characters)\n3) Parallelism degree for encryption\n4) Server IP\n5) Server port\n");
         exit(1);
     }
 
@@ -19,14 +19,14 @@ void read_args(int argc, char **argv, char **filename, char **key_s, int *p, cha
     *filename = argv[1]; // file input
     if (strlen(*filename) == 0)
     {
-        fprintf(stderr, "Errore: Il nome del file non può essere vuoto.\n");
+        fprintf(stderr, "Error: The file name cannot be empty.\n");
         exit(1);
     }
 
     // controlli sull'argomento key_s
     if (strlen(argv[2]) != 8)
     {
-        fprintf(stderr, "Errore: La chiave ('%s') deve avere lunghezza esattamente 8 caratteri.\n", argv[2]);
+        fprintf(stderr, "Errore: The key ('%s') must be exactly 8 characters long.\n", argv[2]);
         exit(1);
     }
     *key_s = argv[2]; // chiave di cifratura
@@ -35,7 +35,7 @@ void read_args(int argc, char **argv, char **filename, char **key_s, int *p, cha
     *p = (int)strtol(argv[3], &endptr, 10); // grado di parallelismo nella cifratura
     if (*endptr != '\0' || *p <= 0)
     {
-        fprintf(stderr, "Errore: Il grado di parallelismo ('%s') deve essere un numero intero positivo.\n", argv[3]);
+        fprintf(stderr, "Error: The parallelism degree ('%s') must be a positive integer.\n", argv[3]);
         exit(1);
     }
 
@@ -43,7 +43,7 @@ void read_args(int argc, char **argv, char **filename, char **key_s, int *p, cha
     *ip = argv[4]; // ip del server
     if (strlen(*ip) == 0)
     {
-        fprintf(stderr, "Errore: L'indirizzo IP del server non può essere vuoto.\n");
+        fprintf(stderr, "Error: The server IP address cannot be empty.\n");
         exit(1);
     }
 
@@ -51,7 +51,7 @@ void read_args(int argc, char **argv, char **filename, char **key_s, int *p, cha
     *port = (int)strtol(argv[5], &endptr, 10); // porta del server
     if (*endptr != '\0' || *port <= 0 || *port > 65535)
     {
-        fprintf(stderr, "Errore: La porta del server ('%s') deve essere un numero intero tra 1 e 65535.\n", argv[5]);
+        fprintf(stderr, "Error: The server port ('%s') must be an integer between 1 and 65535.\n", argv[5]);
         exit(1);
     }
 }
@@ -65,7 +65,7 @@ char *read_file(char *filename)
     FILE *file = fopen(filename, "r");
     if (!file)
     {
-        perror("Errore nell'apertura del file");
+        fprintf(stderr, "Error opening file '%s'.\n", filename);
         return NULL;
     }
 
@@ -76,7 +76,7 @@ char *read_file(char *filename)
     buffer = malloc(dimension + 1);
     if (!buffer)
     {
-        perror("Errore nell'allocazione di memoria");
+        perror("Error allocating memory");
         fclose(file);
         return NULL;
     }
@@ -91,7 +91,7 @@ int connect_to_server(int port, const char *ip, struct sockaddr_in *server_addr)
 {
     int sockfd = init_socket(port, ip, server_addr);
 
-    printf("[CLIENT] Connessione al server %s:%d...\n", ip, port);
+    printf("[CLIENT] Connecting to server %s:%d...\n", ip, port);
     if (connect(sockfd, (struct sockaddr *)server_addr, sizeof(*server_addr)) < 0)
     {
         perror("connect");
@@ -130,7 +130,7 @@ size_t encrypt_msg(char *text, int p, size_t orig_l)
     block_signals(set);
     size_t l = divide_blocks(text, p, orig_l);
     unblock_signals(set);
-    printf("[CLIENT] Cifratura completata.\n");
+    printf("[CLIENT] Encryption completed.\n");
     return l;
 }
 
@@ -261,7 +261,7 @@ void send_message_to_server(int sockfd, unsigned long long key, char *text_buffe
     int n;
     char *msg = make_msg(key, text_buffer, l, &msg_len);
 
-    printf("[CLIENT] Invio messaggio...\n");
+    printf("[CLIENT] Sending message...\n");
     n = send(sockfd, msg, msg_len, 0);
     if (n < 0)
     {
@@ -318,15 +318,15 @@ void receive_ack(int sockfd)
 
     if (strcmp(buffer, "ACK") == 0)
     {
-        printf("[CLIENT] ACK ricevuto\n");
+        printf("[CLIENT] ACK received\n");
     }
     else if (strcmp(buffer, "BUSY") == 0)
     {
-        printf("[CLIENT] Connection refused, no available connections\n");
+        printf("[CLIENT] Connection refused. Server busy.\n");
     }
     else
     {
-        printf("[CLIENT] Risposta inaspettata: %s\n", buffer);
+        printf("[CLIENT] Unexpected response: %s\n", buffer);
     }
 }
 
@@ -349,7 +349,7 @@ void block_signals(sigset_t set)
 
     if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
     {
-        perror("Errore nel blocco dei segnali");
+        perror("Signal block error");
         exit(EXIT_FAILURE);
     }
 }
@@ -360,7 +360,7 @@ void unblock_signals(sigset_t set)
 
     if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
     {
-        perror("Errore nello sblocco dei segnali");
+        perror("Signal unblock error");
         exit(EXIT_FAILURE);
     }
 }

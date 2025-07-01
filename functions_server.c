@@ -9,7 +9,7 @@ void read_args(int argc, char **argv, int *p, char **s, int *l)
     // controlli sul numero di argomenti del server
     if (argc != 4)
     {
-        fprintf(stderr, "ERRORE ARGOMENTI\nGli argomenti devono essere:\n1) Grado parallelismo decifratura\n2) Prefisso file output\n3) Massimo connessioni concorrenti\n");
+        fprintf(stderr, "ARGUMENTS ERROR\nThe arguments must be:\n1) Decypher parallelism\n2) Output file prefix\n3) Max cuncurrent connections\n");
         exit(1);
     }
 
@@ -17,19 +17,19 @@ void read_args(int argc, char **argv, int *p, char **s, int *l)
     *p = (int)strtol(argv[1], &endptr, 10); // grado di parallelismo
     if (*endptr != '\0' || *p <= 0)
     {
-        fprintf(stderr, "Errore: Il grado di parallelismo ('%s') deve essere un numero intero positivo.\n", argv[1]);
+        fprintf(stderr, "Error: the parallelism degree ('%s') must be a positive integer.\n", argv[1]);
         exit(1);
     }
 
     // controlli sull'argomento s
     if (strlen(argv[2]) == 0)
     {
-        fprintf(stderr, "Errore: Il prefisso del file non può essere vuoto.\n");
+        fprintf(stderr, "Error: the prefix cannot be empty.\n");
         exit(1);
     }
     if (strchr(argv[2], '/') != NULL)
     {
-        fprintf(stderr, "Errore: Il prefisso del file ('%s') non può contenere il carattere '/'.\n", argv[2]);
+        fprintf(stderr, "Error: the prefix ('%s') cannot contain the character '/'.\n", argv[2]);
         exit(1);
     }
     *s = argv[2]; // prefisso file di scrittura
@@ -38,7 +38,7 @@ void read_args(int argc, char **argv, int *p, char **s, int *l)
     *l = (int)strtol(argv[3], &endptr, 10); // numero massimo di connessioni concorrenti
     if (*endptr != '\0' || *l <= 0)
     {
-        fprintf(stderr, "Errore: Il numero massimo di connessioni ('%s') deve essere un numero intero positivo.\n", argv[3]);
+        fprintf(stderr, "Error: the max number of connections ('%s') must be a positive integer.\n", argv[3]);
         exit(1);
     }
 }
@@ -81,7 +81,7 @@ void init_socket(int port, int *server_fd)
         close(*server_fd);
         exit(1);
     }
-    printf("[SERVER] Pronto ad accettare connessioni sulla porta %d...\n\n", port);
+    printf("[SERVER] Ready to accept connections on port %d...\n\n", port);
 }
 
 // Gestisce le nuove connessioni in ingresso
@@ -92,20 +92,21 @@ void manage_connections()
     int serial = 0;
     while (1)
     {
+        // Accetta la connessione
         int client_fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
         if (client_fd < 0)
         {
             perror("accept");
             continue;
         }
-        printf("[SERVER] Connessione accettata da %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+        printf("[SERVER] Connection accepted from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
         // Tenta di acquisire un semaforo senza bloccare
         if (sem_trywait(&available_connections) == -1)
         {
             // Se EAGAIN, il server è occupato
             if (errno == EAGAIN)
             {
-                printf("Server occupato. Rifiuto connessione da %s:%d\n",
+                printf("\n[SERVER] Server busy. Rejecting connection from %s:%d\n",
                        inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
                 send(client_fd, "BUSY", 5, 0); // Invia un messaggio di "occupato"
                 close(client_fd);
@@ -120,10 +121,12 @@ void manage_connections()
             }
         }
         serial++;
+        // Incapsula gli argomenti per il thread
         c_thread_args *args = malloc(sizeof(c_thread_args));
         args->client_fd = client_fd;
         args->serial = serial;
         pthread_t tid;
+        // Crea un thread per gestire il client
         pthread_create(&tid, NULL, *manage_client_message, args);
         pthread_detach(tid);
     }
@@ -132,39 +135,53 @@ void manage_connections()
 // Gestisce la comunicazione con un singolo client (thread)
 void *manage_client_message(void *arg)
 {
+    // Delay artificiale per testare le connessioni concorrenti
     sleep(delay);
+
+    // Decapsula gli argomenti passati al thread
     c_thread_args *args = (c_thread_args *)arg;
     int client_fd = args->client_fd;
     int serial = args->serial;
-    printf("[SERVER] Gestione client #%d (fd=%d) iniziata.\n", serial, client_fd);
+
+    // Riceve il messaggio dal client
+    printf("[SERVER] Beginning Client #%d (fd=%d) management.\n", serial, client_fd);
     char *msg = receive_msg(client_fd);
-    printf("[SERVER] Messaggio ricevuto dal client #%d.\n", serial);
+    printf("[SERVER] Received message from Client #%d.\n", serial);
+
+    // Estrae chiave e testo dal messaggio
     unsigned long long key = 0;
     size_t text_len = 0;
     char *text = NULL;
     get_key_and_text(msg, &key, &text_len, &text);
+
+    // Blocca i segnali
     sigset_t set = get_set();
     block_signals(set);
     char *decyphered_text = manage_threads(text, text_len, key);
     unblock_signals(set);
-    printf("[SERVER] Decifratura completata.\n");
+    printf("[SERVER] Decypher complete.\n");
+
+    // Rimuove il padding
     char *eot = strchr(decyphered_text, EOT);
     *eot = '\0';
 
+    // Invia ACK al client
     const char *response = "ACK";
     send(client_fd, response, 4, 0);
     close(client_fd);
 
+    // Scrive il testo decifrato sul file di output con prefisso specificato
     int len_serial = snprintf(NULL, 0, "%d", serial);
     int filename_len = strlen(s) + len_serial + 5;
     char *filename = malloc(filename_len);
     snprintf(filename, filename_len, "%s%d.txt", s, serial);
     filename[filename_len] = '\0';
-    printf("[SERVER] Scrivendo sul file: %s\n", filename);
+    printf("[SERVER] Writing on file: %s\n", filename);
     block_signals(set);
     write_file(decyphered_text, filename);
     unblock_signals(set);
-    printf("[SERVER] Fine scrittura sul file: %s\n\n", filename);
+    printf("[SERVER] Done writing on file: %s\n\n", filename);
+
     // Cleanup
     cleanup_client_resources(client_fd, msg, text, decyphered_text, filename);
     free(args);
@@ -186,7 +203,7 @@ char *receive_msg(int client_fd)
             break;
 
         // Alloca o rialloca msg
-        char *new_msg = realloc(msg, total_received + n + 1); // +1 per terminatore
+        char *new_msg = realloc(msg, total_received + n + 1);
         if (!new_msg)
         {
             free(msg);
@@ -248,13 +265,17 @@ void get_key_and_text(char *msg, unsigned long long *key, size_t *text_len, char
 char *manage_threads(char *text, size_t text_len, unsigned long long key)
 {
     char *text_buffer = malloc(text_len + 1);
-    // calcola il numero totale di blocchi
-    int blocks_total = text_len / 8; // 8 byte per blocco
+
+    int blocks_total = text_len / 8;
     int blocks_per_thread, blocks_last_thread, thread_count;
+
+    // Se ci sono meno blocchi di quelli che i thread possono gestire
     if (blocks_total <= p)
     {
+        // Ogni thread gestisce un blocco
         blocks_per_thread = 1;
         blocks_last_thread = 0;
+        // Crea un thread per ogni blocco invece p thread
         thread_count = blocks_total;
     }
     else
@@ -264,18 +285,18 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
         blocks_last_thread = text_len % (p * 8) / 8; // Resto per l'ultimo thread
         thread_count = p;
     }
-
+    // Tieni traccia dei thread creati
     pthread_t *tids = malloc(sizeof(pthread_t) * thread_count);
 
     for (int i = 0; i < thread_count; i++)
     {
         int blocks = blocks_per_thread;
+        // L'ultimo thread gestisce eventuali threads rimanenti
         if (i == p - 1 && blocks_last_thread > 0)
             blocks += blocks_last_thread;
 
         int start = i * blocks_per_thread * 8;
         char *partial = malloc(blocks * 8 + 1);
-        // strncpy(partial, text + start, blocks * 8);
         memcpy(partial, text + start, blocks * 8);
         partial[blocks * 8] = '\0';
 
@@ -300,12 +321,14 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
 // Funzione eseguita da ciascun thread per decifrare una porzione di testo
 void *decypher_partial(void *arg)
 {
+    // Decapsula gli argomenti passati al thread
     d_thread_args *args = (d_thread_args *)arg;
     char *partial = args->partial;
     int offset = args->offset;
     char *text_buffer = args->text_buffer;
     unsigned long long key = args->key;
     int blocks_num = args->blocks_num;
+    // Mette i blocchi
     char block[9];
     for (int i = 0; i < blocks_num; i++)
     {
@@ -363,7 +386,7 @@ void write_file(char *text, char *pathfile)
     FILE *file = fopen(pathfile, "w");
     if (!file)
     {
-        perror("Errore nell'apertura del file");
+        perror("Error opening file for writing");
         return;
     }
     fwrite(text, sizeof(char), strlen(text), file);
@@ -423,30 +446,30 @@ sigset_t get_set()
 // Gestisce la terminazione del server su segnale
 void termination_handler(int signum)
 {
-    printf("\n[SERVER] Terminazione richiesta. Chiudo il server...\n");
+    printf("\n[SERVER] Termination signal received. Closing server...\n");
     sem_destroy(&available_connections);
     close(server_fd);
     exit(0);
 }
 
-// Blocca i segnali in set
+// Blocca i segnali specificati
 void block_signals(sigset_t set)
 {
 
     if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
     {
-        perror("Errore nel blocco dei segnali");
+        perror("Signal block error");
         exit(EXIT_FAILURE);
     }
 }
 
-// Sblocca i segnali in set
+// Sblocca i segnali specificati
 void unblock_signals(sigset_t set)
 {
 
     if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
     {
-        perror("Errore nello sblocco dei segnali");
+        perror("Signal unblock error");
         exit(EXIT_FAILURE);
     }
 }

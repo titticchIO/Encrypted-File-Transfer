@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     text = read_file(filename);
     if (!text)
     {
-        fprintf(stderr, "Errore nella lettura del file %s\n", filename);
+        fprintf(stderr, "Error reading file %s\n", filename);
         exit(1);
     }
     orig_l = strlen(text);
