@@ -1,7 +1,7 @@
 #include "header_server.h"
 int delay_unblocked = 0;
 int delay_decypher = 0; // 15 per test
-int delay_writing = 15;
+int delay_writing = 30;
 
 // Legge e valida gli argomenti da linea di comando
 void read_args(int argc, char **argv, int *p, char **s, int *l)
@@ -143,7 +143,9 @@ void *manage_client_message(void *arg)
     int serial = args->serial;
 
     // Riceve il messaggio dal client
-    printf("[SERVER] Beginning Client #%d (fd=%d) management.\n", serial, client_fd);
+    pid_t tid = (pid_t)syscall(SYS_gettid);
+    printf("TID del thread: %d\n", tid);
+    printf("[SERVER] Beginning Client #%d (fd=%d) (tid=%ld) management.\n", serial, client_fd, pthread_self());
     char *msg = receive_msg(client_fd);
     printf("[SERVER] Received message from Client #%d.\n", serial);
 
@@ -446,25 +448,17 @@ sigset_t get_set()
 // Gestisce la terminazione del server su segnale
 void termination_handler(int signum)
 {
-    // Se sei il thread principale, chiudi il socket e il semaforo
+    // Se e' il thread principale, chiude il socket e il semaforo
     if (pthread_equal(pthread_self(), main_thread_id))
     {
         printf("\n[SERVER] Termination signal received. Closing server...\n");
         sem_destroy(&available_connections);
         close(server_fd);
-        pid_t pgrp = getpgrp();
-        if (setpgrp() == -1)
-        {
-            perror("setpgrp");
-            exit(EXIT_FAILURE);
-        }
-        killpg(pgrp, signum); // Inoltra il segnale a tutti i processi del gruppo
     }
     else
     {
         printf("\n[SERVER] Termination signal received in thread %ld. Exiting thread...\n", pthread_self());
     }
-
     pthread_exit(NULL);
 }
 

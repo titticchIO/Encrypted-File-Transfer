@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#define _XOPEN_SOURCE 500
 #ifndef HEADER_SERVER_H
 #define HEADER_SERVER_H
 
@@ -12,6 +11,8 @@
 #include <pthread.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 #define PORT 50000
 #define BUF_SIZE 1024
