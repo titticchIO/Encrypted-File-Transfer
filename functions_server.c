@@ -1,7 +1,7 @@
 #include "header_server.h"
-int delay_unblocked = 0;
+int delay_unblocked = 60;
 int delay_decypher = 0; // 15 per test
-int delay_writing = 30;
+int delay_writing = 0;
 
 // Legge e valida gli argomenti da linea di comando
 void read_args(int argc, char **argv, int *p, char **s, int *l)
@@ -144,8 +144,8 @@ void *manage_client_message(void *arg)
 
     // Riceve il messaggio dal client
     pid_t tid = (pid_t)syscall(SYS_gettid);
-    printf("TID del thread: %d\n", tid);
-    printf("[SERVER] Beginning Client #%d (fd=%d) (tid=%ld) management.\n", serial, client_fd, pthread_self());
+    pid_t tgid = getpid();
+    printf("[SERVER] Beginning Client #%d (fd=%d) (tgid=%d, tid=%d) management.\n", serial, client_fd, tgid, tid);
     char *msg = receive_msg(client_fd);
     printf("[SERVER] Received message from Client #%d.\n", serial);
 

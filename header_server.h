@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #ifndef HEADER_SERVER_H
 #define HEADER_SERVER_H
