@@ -229,28 +229,24 @@ void cypher_block(const char *block, int offset)
 unsigned long long string_to_bits(const char *str)
 {
     unsigned long long result = 0;
-
     for (size_t i = 0; i < 8; i++)
     {
         result <<= 8;                    // lascia spazio per il prossimo carattere
-        result |= (unsigned char)str[i]; // aggiungi i byte in fondo
+        result |= (unsigned char)str[i]; // aggiunge i byte in fondo
     }
-
-    // Stampa la rappresentazione binaria
-
     return result;
 }
 
 // Converte un intero a 64 bit in una stringa di 8 caratteri
 char *bits_to_string(unsigned long long bits)
 {
-    char *str = malloc(9); // 8 byte + terminatore di stringa
+    char *str = malloc(9);
     for (int i = 7; i >= 0; i--)
     {
         str[i] = (char)(bits & 0xFF);
         bits >>= 8;
     }
-    str[8] = '\0'; // Terminatore di stringa
+    str[8] = '\0';
     return str;
 }
 
@@ -288,13 +284,13 @@ char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
     if (!msg)
         return NULL;
 
-    // Scrivi key
+    // Scrive key
     offset += snprintf(msg + offset, *msg_len - offset, "%llu", key);
     msg[offset++] = SEPARATOR;
-    // Scrivi la lunghezza del testo
+    // Scrive la lunghezza del testo
     offset += snprintf(msg + offset, *msg_len - offset, "%zu", l);
     msg[offset++] = SEPARATOR;
-    // Scrivi il testo (può contenere byte nulli, quindi usa memcpy)
+    // Scrive il testo (può contenere byte nulli, quindi usa memcpy)
     memcpy(msg + offset, text, l);
     offset += l;
     msg[offset] = SEPARATOR;

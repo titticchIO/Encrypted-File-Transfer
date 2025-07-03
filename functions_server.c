@@ -355,28 +355,24 @@ void decypher_block(char *block, int offset, unsigned long long key, char *text_
 unsigned long long string_to_bits(const char *str)
 {
     unsigned long long result = 0;
-
     for (size_t i = 0; i < 8; i++)
     {
         result <<= 8;                    // lascia spazio per il prossimo carattere
         result |= (unsigned char)str[i]; // aggiungi i byte in fondo
     }
-
-    // Stampa la rappresentazione binaria
-
     return result;
 }
 
 // Converte un intero a 64 bit in una stringa di 8 caratteri
 char *bits_to_string(unsigned long long bits)
 {
-    char *str = malloc(9); // 8 byte + terminatore di stringa
+    char *str = malloc(9);
     for (int i = 7; i >= 0; i--)
     {
         str[i] = (char)(bits & 0xFF);
         bits >>= 8;
     }
-    str[8] = '\0'; // Terminatore di stringa
+    str[8] = '\0';
     return str;
 }
 
