@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     sockfd = connect_to_server(port, ip, &server_addr);
 
     // Cifratura del testo
-    l = encrypt_msg(text, p, orig_l);
+    l = encrypt_msg(&text, p, orig_l);
 
     // Invio messaggio
     send_message_to_server(sockfd, key, text_buffer, l);

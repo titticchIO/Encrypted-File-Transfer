@@ -32,8 +32,8 @@ int connect_to_server(int port, const char *ip, struct sockaddr_in *server_addr)
 int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr);                   // Inizializza e restituisce un socket TCP
 
 // Cifratura
-size_t encrypt_msg(char *text, int p, size_t orig_l);
-size_t divide_blocks(char *text, int p, size_t L);                                     // Divide il testo in blocchi da cifrare e gestisce il padding
+size_t encrypt_msg(char **text, int p, size_t orig_l);
+size_t divide_blocks(char **text, int p, size_t L);                                    // Divide il testo in blocchi da cifrare e gestisce il padding
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p); // Gestisce la creazione e sincronizzazione dei thread di cifratura
 void *cypher_partial(void *void_args);                                                 // Funzione eseguita da ciascun thread per cifrare una porzione di testo
 void cypher_block(const char *block, int offset);                                      // Cifra un blocco di testo e lo scrive nel buffer globale

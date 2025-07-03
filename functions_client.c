@@ -124,7 +124,7 @@ int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr
 }
 
 // Gestisce il processo di cifratura con gestione dei segnali
-size_t encrypt_msg(char *text, int p, size_t orig_l)
+size_t encrypt_msg(char **text, int p, size_t orig_l)
 {
     sigset_t set = get_set();
     block_signals(set);
@@ -135,15 +135,15 @@ size_t encrypt_msg(char *text, int p, size_t orig_l)
 }
 
 // Divide il testo in blocchi da cifrare e gestisce il padding
-size_t divide_blocks(char *text, int p, size_t L)
+size_t divide_blocks(char **text, int p, size_t L)
 {
     int padding_len, blocks_num, blocks_per_thread, blocks_last_thread;
     padding_len = 8 - (L % 8);
     if (padding_len < 8)
     {
-        text = realloc(text, L + padding_len + 1);
-        memset(text + L, EOT, padding_len);
-        text[L + padding_len] = '\0';
+        *text = realloc(*text, L + padding_len + 1);
+        memset(*text + L, EOT, padding_len);
+        (*text)[L + padding_len] = '\0';
         L += padding_len;
     }
     blocks_num = L / 8;
@@ -155,7 +155,7 @@ size_t divide_blocks(char *text, int p, size_t L)
         free(text_buffer);
     text_buffer = malloc(L + 1);
     memset(text_buffer, 0, L + 1);
-    manage_threads(text, blocks_per_thread, blocks_last_thread, p);
+    manage_threads(*text, blocks_per_thread, blocks_last_thread, p);
     return L;
 }
 
