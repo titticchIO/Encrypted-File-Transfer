@@ -322,7 +322,7 @@ void receive_ack(int sockfd)
     }
     else
     {
-        printf("[CLIENT] Unexpected response: %s\n", buffer);
+        printf("[CLIENT] Connection closed, no response from server.\n");
     }
 }
 

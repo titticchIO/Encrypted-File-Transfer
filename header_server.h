@@ -1,4 +1,5 @@
-#define _POSIX_C_SOURCE 200112L
+#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 500
 #ifndef HEADER_SERVER_H
 #define HEADER_SERVER_H
 
@@ -32,11 +33,14 @@ typedef struct
     int serial;
 } c_thread_args;
 
+extern pthread_t main_thread_id;
 extern sem_t available_connections;
 extern int p;
 extern int server_fd;
 extern char *s;
-extern int delay;
+extern int delay_unblocked;
+extern int delay_decypher;
+extern int delay_writing;
 
 // Setup
 void read_args(int argc, char **argv, int *p, char **s, int *l); // Legge e valida gli argomenti da linea di comando

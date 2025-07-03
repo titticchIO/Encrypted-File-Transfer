@@ -1,5 +1,5 @@
-gcc server.c -o server
-gcc client.c -o client
+gcc server.c functions_server.c -o server
+gcc client.c functions_client.c -o client
 
 valgrind --leak-check=full ./client lungo.txt h3rm10n3 20 127.0.0.1 50000
 

@@ -1,5 +1,7 @@
 #include "header_server.h"
-int delay = 0;
+int delay_unblocked = 0;
+int delay_decypher = 0; // 15 per test
+int delay_writing = 15;
 
 // Legge e valida gli argomenti da linea di comando
 void read_args(int argc, char **argv, int *p, char **s, int *l)
@@ -135,9 +137,6 @@ void manage_connections()
 // Gestisce la comunicazione con un singolo client (thread)
 void *manage_client_message(void *arg)
 {
-    // Delay artificiale per testare le connessioni concorrenti
-    sleep(delay);
-
     // Decapsula gli argomenti passati al thread
     c_thread_args *args = (c_thread_args *)arg;
     int client_fd = args->client_fd;
@@ -148,6 +147,7 @@ void *manage_client_message(void *arg)
     char *msg = receive_msg(client_fd);
     printf("[SERVER] Received message from Client #%d.\n", serial);
 
+    sleep(delay_unblocked);
     // Estrae chiave e testo dal messaggio
     unsigned long long key = 0;
     size_t text_len = 0;
@@ -158,8 +158,11 @@ void *manage_client_message(void *arg)
     sigset_t set = get_set();
     block_signals(set);
     char *decyphered_text = manage_threads(text, text_len, key);
-    unblock_signals(set);
+    sleep(delay_decypher);
     printf("[SERVER] Decypher complete.\n");
+    unblock_signals(set);
+    // if terminate
+    // cleanup
 
     // Rimuove il padding
     char *eot = strchr(decyphered_text, EOT);
@@ -175,11 +178,12 @@ void *manage_client_message(void *arg)
     int filename_len = strlen(s) + len_serial + 5;
     char *filename = malloc(filename_len);
     snprintf(filename, filename_len, "%s%d.txt", s, serial);
-    printf("[SERVER] Writing on file: %s\n", filename);
     block_signals(set);
+    sleep(delay_writing);
+    printf("[SERVER] Writing on file: %s\n", filename);
     write_file(decyphered_text, filename);
-    unblock_signals(set);
     printf("[SERVER] Done writing on file: %s\n\n", filename);
+    unblock_signals(set);
 
     // Cleanup
     cleanup_client_resources(client_fd, msg, text, decyphered_text, filename);
@@ -442,10 +446,26 @@ sigset_t get_set()
 // Gestisce la terminazione del server su segnale
 void termination_handler(int signum)
 {
-    printf("\n[SERVER] Termination signal received. Closing server...\n");
-    sem_destroy(&available_connections);
-    close(server_fd);
-    exit(0);
+    // Se sei il thread principale, chiudi il socket e il semaforo
+    if (pthread_equal(pthread_self(), main_thread_id))
+    {
+        printf("\n[SERVER] Termination signal received. Closing server...\n");
+        sem_destroy(&available_connections);
+        close(server_fd);
+        pid_t pgrp = getpgrp();
+        if (setpgrp() == -1)
+        {
+            perror("setpgrp");
+            exit(EXIT_FAILURE);
+        }
+        killpg(pgrp, signum); // Inoltra il segnale a tutti i processi del gruppo
+    }
+    else
+    {
+        printf("\n[SERVER] Termination signal received in thread %ld. Exiting thread...\n", pthread_self());
+    }
+
+    pthread_exit(NULL);
 }
 
 // Blocca i segnali specificati
