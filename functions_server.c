@@ -175,7 +175,6 @@ void *manage_client_message(void *arg)
     int filename_len = strlen(s) + len_serial + 5;
     char *filename = malloc(filename_len);
     snprintf(filename, filename_len, "%s%d.txt", s, serial);
-    filename[filename_len] = '\0';
     printf("[SERVER] Writing on file: %s\n", filename);
     block_signals(set);
     write_file(decyphered_text, filename);
@@ -406,6 +405,7 @@ void cleanup_client_resources(int client_fd, char *msg, char *text, char *decyph
 void setup_signal_handlers()
 {
     struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
     sa.sa_handler = termination_handler;
     sigemptyset(&sa.sa_mask);
 
