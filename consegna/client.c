@@ -26,6 +26,11 @@ int main(int argc, char *argv[])
 
     // Connessione al server
     sockfd = connect_to_server(port, ip, &server_addr);
+    if (sockfd < 0)
+    {
+        free(text);
+        exit(1);
+    }
 
     // Cifratura del testo
     l = encrypt_msg(&text, p, orig_l);

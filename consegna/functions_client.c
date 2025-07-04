@@ -96,7 +96,7 @@ int connect_to_server(int port, const char *ip, struct sockaddr_in *server_addr)
     {
         perror("connect");
         close(sockfd);
-        exit(1);
+        return -1;
     }
 
     return sockfd;
