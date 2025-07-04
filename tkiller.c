@@ -1,4 +1,3 @@
-/* tsig.c : tgkill wrapper  gcc tsig.c -o tsig */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <sys/syscall.h>
@@ -10,12 +9,12 @@ int main(int argc, char **argv)
 {
     if (argc != 4)
     {
-        fprintf(stderr, "uso: %s <tgid> <tid> <sig>\n", argv[0]);
+        fprintf(stderr, "Use: %s <tgid> <tid> <sig>\n", argv[0]);
         return 1;
     }
     pid_t tgid = (pid_t)atoi(argv[1]);
     pid_t tid = (pid_t)atoi(argv[2]);
-    int sig = atoi(argv[3]); /* oppure usa str2sig */
+    int sig = atoi(argv[3]);
     if (syscall(SYS_tgkill, tgid, tid, sig) == -1)
     {
         perror("tgkill");
