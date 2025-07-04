@@ -69,8 +69,19 @@ char *read_file(char *filename)
         return NULL;
     }
 
-    fseek(file, 0, SEEK_END);
+    if (fseek(file, 0, SEEK_END) != 0)
+    {
+        perror("fseek");
+        fclose(file);
+        return NULL;
+    }
     dimension = ftell(file);
+    if (dimension == -1L)
+    {
+        perror("ftell");
+        fclose(file);
+        return NULL;
+    }
     rewind(file);
 
     buffer = malloc(dimension + 1);
@@ -83,7 +94,14 @@ char *read_file(char *filename)
 
     read = fread(buffer, sizeof(char), dimension, file);
     buffer[read] = '\0';
-    fclose(file);
+
+    if (fclose(file) == EOF)
+    {
+        perror("fclose");
+        free(buffer);
+        return NULL;
+    }
+
     return buffer;
 }
 // Gestisce la connessione al server
@@ -119,7 +137,12 @@ int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr
     memset(server_addr, 0, sizeof(*server_addr));
     server_addr->sin_family = AF_INET;
     server_addr->sin_port = htons(port);
-    inet_pton(AF_INET, server_ip, &server_addr->sin_addr);
+    if (inet_pton(AF_INET, server_ip, &server_addr->sin_addr) <= 0)
+    {
+        perror("inet_pton");
+        close(sockfd);
+        exit(1);
+    }
     return sockfd;
 }
 
@@ -141,7 +164,14 @@ size_t divide_blocks(char **text, int p, size_t L)
     padding_len = 8 - (L % 8);
     if (padding_len < 8)
     {
-        *text = realloc(*text, L + padding_len + 1);
+        char *new_text = realloc(*text, L + padding_len + 1);
+        if (!new_text)
+        {
+            perror("realloc");
+            free(*text);
+            exit(1);
+        }
+        *text = new_text;
         memset(*text + L, EOT, padding_len);
         (*text)[L + padding_len] = '\0';
         L += padding_len;
@@ -154,6 +184,11 @@ size_t divide_blocks(char **text, int p, size_t L)
     if (text_buffer)
         free(text_buffer);
     text_buffer = malloc(L + 1);
+    if (!text_buffer)
+    {
+        perror("malloc for text_buffer");
+        exit(1);
+    }
     memset(text_buffer, 0, L + 1);
     manage_threads(*text, blocks_per_thread, blocks_last_thread, p);
     return L;
@@ -166,6 +201,11 @@ void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, i
     char *partial;
     thread_args *args;
     pthread_t *tids = malloc(sizeof(pthread_t) * p);
+    if (!tids)
+    {
+        perror("malloc for tids");
+        exit(1);
+    }
 
     total_blocks = (blocks_per_thread * p) + blocks_last_thread;
     total_bytes = total_blocks * 8;
@@ -178,6 +218,7 @@ void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, i
 
         start = i * blocks_per_thread * 8;
         partial = malloc(blocks * 8 + 1);
+
         strncpy(partial, text + start, blocks * 8);
         partial[blocks * 8] = '\0';
 
@@ -282,7 +323,10 @@ char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len)
     *msg_len = key_len + 1 + l_len + 1 + l + 1;
     msg = malloc(*msg_len);
     if (!msg)
+    {
+        perror("malloc for make_msg");
         return NULL;
+    }
 
     // Scrive key
     offset += snprintf(msg + offset, *msg_len - offset, "%llu", key);
@@ -330,12 +374,36 @@ void receive_ack(int sockfd)
 sigset_t get_set()
 {
     sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGUSR1);
-    sigaddset(&set, SIGUSR2);
-    sigaddset(&set, SIGTERM);
+    if (sigemptyset(&set) != 0)
+    {
+        perror("sigemptyset");
+        exit(EXIT_FAILURE);
+    }
+    if (sigaddset(&set, SIGINT) != 0)
+    {
+        perror("sigaddset SIGINT");
+        exit(EXIT_FAILURE);
+    }
+    if (sigaddset(&set, SIGALRM) != 0)
+    {
+        perror("sigaddset SIGALRM");
+        exit(EXIT_FAILURE);
+    }
+    if (sigaddset(&set, SIGUSR1) != 0)
+    {
+        perror("sigaddset SIGUSR1");
+        exit(EXIT_FAILURE);
+    }
+    if (sigaddset(&set, SIGUSR2) != 0)
+    {
+        perror("sigaddset SIGUSR2");
+        exit(EXIT_FAILURE);
+    }
+    if (sigaddset(&set, SIGTERM) != 0)
+    {
+        perror("sigaddset SIGTERM");
+        exit(EXIT_FAILURE);
+    }
     return set;
 }
 

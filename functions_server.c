@@ -145,6 +145,10 @@ void *manage_client_message(void *arg)
 
     // Riceve il messaggio dal client
     pid_t tid = (pid_t)syscall(SYS_gettid);
+    if (tid == -1)
+    {
+        perror("syscall(SYS_gettid)");
+    }
     pid_t tgid = getpid();
     printf("[SERVER] Beginning Client #%d (fd=%d) (tgid=%d, tid=%d) management.\n", serial, client_fd, tgid, tid);
     char *msg = receive_msg(client_fd);
@@ -171,7 +175,10 @@ void *manage_client_message(void *arg)
 
     // Invia ACK al client
     const char *response = "ACK";
-    send(client_fd, response, 4, 0);
+    if (send(client_fd, response, 4, 0) < 0)
+    {
+        perror("send ack");
+    }
     close(client_fd);
 
     // Scrive il testo decifrato sul file di output con prefisso specificato
@@ -350,6 +357,11 @@ void decypher_block(char *block, int offset, unsigned long long key, char *text_
     unsigned long long block_bytes = string_to_bits(block);
     unsigned long long decyphered_bytes = block_bytes ^ key;
     char *decyphered_block = bits_to_string(decyphered_bytes);
+    if (decyphered_block == NULL)
+    {
+        fprintf(stderr, "Failed to allocate memory for decyphered block.\n");
+        return;
+    }
     memcpy(text_buffer + offset, decyphered_block, 8);
     free(decyphered_block);
 }
@@ -370,6 +382,11 @@ unsigned long long string_to_bits(const char *str)
 char *bits_to_string(unsigned long long bits)
 {
     char *str = malloc(9);
+    if (str == NULL)
+    {
+        perror("malloc in bits_to_string");
+        return NULL;
+    }
     for (int i = 7; i >= 0; i--)
     {
         str[i] = (char)(bits & 0xFF);

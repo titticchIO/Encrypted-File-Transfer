@@ -16,7 +16,11 @@ int main(int argc, char *argv[])
     main_thread_id = pthread_self();
 
     // Inizializza il semaforo per le connessioni attive
-    sem_init(&available_connections, 0, l);
+    if (sem_init(&available_connections, 0, l) == -1)
+    {
+        perror("sem_init");
+        exit(EXIT_FAILURE);
+    }
 
     setup_signal_handlers();
 

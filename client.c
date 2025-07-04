@@ -42,7 +42,10 @@ int main(int argc, char *argv[])
     receive_ack(sockfd);
 
     // Cleanup
-    close(sockfd);
+    if (close(sockfd) < 0)
+    {
+        perror("close");
+    }
     free(text);
     if (text_buffer)
     {
