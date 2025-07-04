@@ -164,8 +164,6 @@ void *manage_client_message(void *arg)
     sleep(delay_decypher);
     printf("[SERVER] Decypher complete.\n");
     unblock_signals(set);
-    // if terminate
-    // cleanup
 
     // Rimuove il padding
     char *eot = strchr(decyphered_text, EOT);
@@ -338,7 +336,6 @@ void *decypher_partial(void *arg)
     char block[9];
     for (int i = 0; i < blocks_num; i++)
     {
-        // strncpy(block, partial + (i * 8), 8);
         memcpy(block, partial + (i * 8), 8);
         block[8] = '\0';
         decypher_block(block, offset + (i * 8), key, text_buffer);

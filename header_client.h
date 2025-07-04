@@ -13,17 +13,18 @@
 #include <signal.h>
 #include <unistd.h>
 
-#define SEPARATOR '\x1F'
-#define EOT '\x03'
+#define SEPARATOR '\x1F' // Carattere separatore usato nel messaggio
+#define EOT '\x03'       // Carattere End-Of-Text usato per il padding
 
+// Struttura per passare argomenti ai thread
 typedef struct
 {
-    char *partial;
-    int offset;
+    char *partial; // Porzione di testo da elaborare
+    int offset;    // Offset nel buffer di destinazione
 } thread_args;
 
-extern unsigned long long key;
-extern char *text_buffer;
+extern unsigned long long key; // Chiave di cifratura passata da linea di comando
+extern char *text_buffer;      // Buffer globale per il testo cifrato
 
 // Setup
 void read_args(int argc, char **argv, char **file_name, char **key_s, int *p, char **ip, int *port); // Legge e valida gli argomenti da linea di comando
@@ -32,7 +33,7 @@ int connect_to_server(int port, const char *ip, struct sockaddr_in *server_addr)
 int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr);                   // Inizializza e restituisce un socket TCP
 
 // Cifratura
-size_t encrypt_msg(char **text, int p, size_t orig_l);
+size_t encrypt_msg(char **text, int p, size_t orig_l);                                 // Gestisce il processo di cifratura
 size_t divide_blocks(char **text, int p, size_t L);                                    // Divide il testo in blocchi da cifrare e gestisce il padding
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p); // Gestisce la creazione e sincronizzazione dei thread di cifratura
 void *cypher_partial(void *void_args);                                                 // Funzione eseguita da ciascun thread per cifrare una porzione di testo
@@ -43,11 +44,11 @@ char *bits_to_string(unsigned long long bits);                                  
 // Comunicazione con il server
 void send_message_to_server(int sockfd, unsigned long long key, char *text_buffer, size_t l); // Invia il messaggio al server
 char *make_msg(unsigned long long key, char *text, size_t l, size_t *msg_len);                // Crea il messaggio da inviare al server secondo il protocollo
-void receive_ack(int sockfd);
+void receive_ack(int sockfd);                                                                 // Gestisce la ricezione dell'ACK dal server
 
 // Gestione segnali
 sigset_t get_set();                 // Restituisce un set di segnali da gestire
 void block_signals(sigset_t set);   // Blocca i segnali specificati
 void unblock_signals(sigset_t set); // Sblocca i segnali specificati
 
-#endif // HEADER_CLIENT_H
+#endif
