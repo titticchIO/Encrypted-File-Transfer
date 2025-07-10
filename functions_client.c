@@ -177,8 +177,8 @@ size_t divide_blocks(char **text, int p, size_t L)
         L += padding_len;
     }
     blocks_num = L / 8;
-    blocks_per_thread = blocks_num / p;
-    blocks_last_thread = blocks_num % p;
+    blocks_per_thread = blocks_num / p;  // Calcola quanti blocchi deve cifrare ciascun thread
+    blocks_last_thread = blocks_num % p; // Calcola quanti blocchi restano all’ultimo thread
 
     // Alloca il buffer globale per il testo cifrato
     if (text_buffer)
@@ -197,7 +197,7 @@ size_t divide_blocks(char **text, int p, size_t L)
 // Gestisce la creazione e sincronizzazione dei thread di cifratura
 void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, int p)
 {
-    int total_blocks, total_bytes, blocks, start;
+    int blocks, start;
     char *partial;
     thread_args *args;
     pthread_t *tids = malloc(sizeof(pthread_t) * p);
@@ -207,13 +207,10 @@ void manage_threads(char *text, int blocks_per_thread, int blocks_last_thread, i
         exit(1);
     }
 
-    total_blocks = (blocks_per_thread * p) + blocks_last_thread;
-    total_bytes = total_blocks * 8;
-
     for (int i = 0; i < p; i++)
     {
         blocks = blocks_per_thread;
-        if (i == p - 1 && blocks_last_thread > 0)
+        if (i == p - 1 && blocks_last_thread > 0) // Se e' l'ultimo thread deve cifrare anche i blocchi in eccesso se presenti
             blocks += blocks_last_thread;
 
         start = i * blocks_per_thread * 8;
@@ -260,7 +257,7 @@ void cypher_block(const char *block, int offset)
 {
 
     unsigned long long block_bytes = string_to_bits(block);
-    unsigned long long cyphered_bytes = block_bytes ^ key; // XOR
+    unsigned long long cyphered_bytes = block_bytes ^ key;
     char *cyphered_block = bits_to_string(cyphered_bytes);
     memcpy(text_buffer + offset, cyphered_block, 8);
     free(cyphered_block);
@@ -272,8 +269,8 @@ unsigned long long string_to_bits(const char *str)
     unsigned long long result = 0;
     for (size_t i = 0; i < 8; i++)
     {
-        result <<= 8;                    // lascia spazio per il prossimo carattere
-        result |= (unsigned char)str[i]; // aggiunge i byte in fondo
+        result <<= 8;
+        result |= (unsigned char)str[i];
     }
     return result;
 }

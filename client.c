@@ -21,9 +21,6 @@ int main(int argc, char *argv[])
     }
     orig_l = strlen(text);
 
-    // Converte una stringa chiave in formato numerico
-    key = string_to_bits(key_s);
-
     // Connessione al server
     sockfd = connect_to_server(port, ip, &server_addr);
     if (sockfd < 0)
@@ -31,6 +28,9 @@ int main(int argc, char *argv[])
         free(text);
         exit(1);
     }
+
+    // Converte una stringa chiave in formato numerico
+    key = string_to_bits(key_s);
 
     // Cifratura del testo
     l = encrypt_msg(&text, p, orig_l);
