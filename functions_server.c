@@ -105,7 +105,6 @@ void manage_connections()
         // Tenta di acquisire un semaforo senza bloccare
         if (sem_trywait(&available_connections) == -1)
         {
-            // Se EAGAIN, il server è occupato
             if (errno == EAGAIN)
             {
                 printf("\n[SERVER] Server busy. Rejecting connection from %s:%d\n",
@@ -116,7 +115,6 @@ void manage_connections()
             }
             else
             {
-                // Altro errore con sem_trywait
                 perror("sem_trywait");
                 close(client_fd);
                 continue;
@@ -302,8 +300,7 @@ char *manage_threads(char *text, size_t text_len, unsigned long long key)
     for (int i = 0; i < thread_count; i++)
     {
         int blocks = blocks_per_thread;
-        // L'ultimo thread gestisce eventuali threads rimanenti
-        if (i == p - 1 && blocks_last_thread > 0)
+        if (i == p - 1 && blocks_last_thread > 0) // Se e' l'ultimo thread gestise anche i blocchi in eccesso
             blocks += blocks_last_thread;
 
         int start = i * blocks_per_thread * 8;

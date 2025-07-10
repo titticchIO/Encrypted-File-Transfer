@@ -1,5 +1,4 @@
 #include "header_server.h"
-// #include "functions_server.c"
 
 sem_t available_connections;
 int p;
@@ -9,7 +8,7 @@ pthread_t main_thread_id;
 
 int main(int argc, char *argv[])
 {
-    // argomenti da terminale
+    // Lettura e validazione argomenti
     int l;
     read_args(argc, argv, &p, &s, &l);
     // Assegna il pid del thread principale
