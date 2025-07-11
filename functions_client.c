@@ -247,6 +247,7 @@ void *cypher_partial(void *void_args)
     }
     free(partial);
     free(args);
+    return NULL;
 }
 
 // Cifra un blocco di testo e lo scrive nel buffer globale

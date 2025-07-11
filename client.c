@@ -1,6 +1,6 @@
 #include "header_client.h"
 
-int delay_client = 20;
+int delay_client = 0;
 
 int main(int argc, char *argv[])
 {

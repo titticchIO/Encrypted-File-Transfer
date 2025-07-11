@@ -49,7 +49,6 @@ void read_args(int argc, char **argv, int *p, char **s, int *l)
 void init_socket(int port, int *server_fd)
 {
     struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
 
     // 1. Crea socket
     *server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -195,6 +194,7 @@ void *manage_client_message(void *arg)
     cleanup_client_resources(client_fd, msg, text, decyphered_text, filename);
     free(args);
     sem_post(&available_connections);
+    return NULL;
 }
 
 // Riceve un messaggio completo dal client
@@ -346,6 +346,7 @@ void *decypher_partial(void *arg)
     }
     free(partial);
     free(args);
+    return NULL;
 }
 
 // Decifra un blocco di testo e lo scrive nel buffer
