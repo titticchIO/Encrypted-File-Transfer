@@ -149,10 +149,7 @@ int init_socket(int port, const char *server_ip, struct sockaddr_in *server_addr
 // Gestisce il processo di cifratura
 size_t encrypt_msg(char **text, int p, size_t orig_l)
 {
-    sigset_t set = get_set();
-    block_signals(set);
     size_t l = divide_blocks(text, p, orig_l);
-    unblock_signals(set);
     printf("[CLIENT] Encryption completed.\n");
     return l;
 }

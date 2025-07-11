@@ -1,5 +1,7 @@
 #include "header_client.h"
 
+int delay_client = 20;
+
 int main(int argc, char *argv[])
 {
     struct sockaddr_in server_addr;
@@ -30,12 +32,15 @@ int main(int argc, char *argv[])
 
     // Converte una stringa chiave in formato numerico
     key = string_to_bits(key_s);
-
+    sigset_t set = get_set();
+    block_signals(set);
+    sleep(delay_client);
     // Cifratura del testo
     l = encrypt_msg(&text, p, orig_l);
 
     // Invio messaggio
     send_message_to_server(sockfd, key, text_buffer, l);
+    unblock_signals(set);
 
     // Ricezione ACK
     receive_ack(sockfd);
